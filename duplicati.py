@@ -146,12 +146,12 @@ def list_filter(json_input, resource):
 	return resource_list
 
 # Get one or more resources with somewhat limited fields
-def get_resources(data, resource, ids):
-	fetch(data, resource, ids, "get")
+def get_resources(data, resource, backup_ids):
+	fetch(data, resource, backup_ids, "get")
 
 # Get one resource with all fields
-def describe_resource(data, resource, id):
-	fetch(data, resource, [id], "describe")
+def describe_resource(data, resource, backup_id):
+	fetch(data, resource, [backup_id], "describe")
 
 # Fetch resources
 def fetch(data, resource, backup_ids, method):
