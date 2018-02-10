@@ -283,17 +283,15 @@ def abort_task(data, task_id):
 	log_output("Task aborted", True)
 
 # Login by authenticating against the Duplicati API and extracting a token
-def login(data, url=None, password=None):
-	# Maybe attempt to renew token? Can we?
-
+def login(data, input_url=None, password=None):
 	# Split protocol, url, and port if port is provided as CLI argument
-	if url is not None:
+	if input_url is not None:
 		# fallback values loaded from config file ("defaults")
 		protocol = data["server"]["protocol"]
 		url = data["server"]["url"]
 		port = data["server"]["port"]
 		# Begin parsing the input url
-		input_url = url.replace("//", "")
+		input_url = input_url.replace("//", "")
 		count = input_url.count(":")
 		if count == 2:
 			protocol, url, port = input_url.split(":")
@@ -302,6 +300,10 @@ def login(data, url=None, password=None):
 		elif count == 1:
 			url, port = input_url.split(":")
 
+	# Update config
+	data["server"]["protocol"] = protocol
+	data["server"]["url"] = url
+	data["server"]["port"] = port
 	# Make the login attempt
 	baseurl = create_baseurl(data, "")
 	log_output("Connecting to " + baseurl + "...", False)
@@ -343,9 +345,6 @@ def login(data, url=None, password=None):
 		return
 
 	# Update the config file with provided values
-	data["server"]["protocol"] = protocol
-	data["server"]["url"] = url
-	data["server"]["port"] = port
 	data["token"] = token
 	data["last_login"] = datetime.datetime.now()
 	write_config(data)
@@ -374,11 +373,11 @@ def create_headers(data):
 	return { "X-XSRF-Token": data.get("token", "") }
 
 # Common function for creating a base url
-def create_baseurl(data, additiona_path):
+def create_baseurl(data, additional_path):
 	protocol = data["server"]["protocol"]
 	url = data["server"]["url"]
 	port = data["server"]["port"]
-	return protocol + "://" + url + ":" + port + additiona_path
+	return protocol + "://" + url + ":" + port + additional_path
 
 # Load the configration from disk - Falls back to creating a default config if none exists
 def load_config(data):
