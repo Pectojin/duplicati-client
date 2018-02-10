@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse as ap, sys, os.path
+from os.path import expanduser
 import requests
 import urllib
 import yaml
@@ -9,7 +10,7 @@ import datetime
 
 # Global values
 config_file = "config.yml"
-verbose = False
+verbose = True
 
 def main(**args):
 	# Command method
@@ -18,6 +19,9 @@ def main(**args):
 	# Default values
 	global verbose
 	global config_file
+	# Detect home dir for config file
+	home = expanduser("~")
+	config_file = home + "/.config/duplicati_client/config.yml"
 	data = {
 		"last_login": None,
 		"server": {
@@ -32,7 +36,7 @@ def main(**args):
 	# Use an alternative config file if --config-file is provided
 	if args.get("config_file", False):
 		config_file = args["config_file"]
-			
+
 	# Load configuration
 	data = load_config(data)
 
@@ -382,7 +386,7 @@ def load_config(data):
 	global config_file
 	# If the config file doesn't exist, create it
 	if os.path.isfile(config_file) is False:
-		log_output("creating", False)
+		log_output("Creating config file", True)
 		write_config(data)
 	# Load the configuration from the config file
 	with open(config_file, 'r') as file:
@@ -414,6 +418,10 @@ def display_config(data):
 # Write config to file
 def write_config(data):
 	global config_file
+	directory = os.path.dirname(config_file)
+	if not os.path.exists(directory):
+		log_output("Created directory \"" + directory + "\"", True)
+		os.makedirs(directory)
 	with open(config_file, 'w') as file:
 		file.write(yaml.dump(data, default_flow_style=False))
 
