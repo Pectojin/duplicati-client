@@ -192,10 +192,10 @@ def fetch(data, resource, backup_ids, method):
 	log_output(yaml.safe_dump(resource_list, default_flow_style=False), True)
 
 # Filter logic for the get function to facilitate readable output
-def get_filter(input, resource):
+def get_filter(json_input, resource):
 	resource_list = []
 	if resource == "backup":
-		for key in input:
+		for key in json_input:
 			backup = key["Backup"]
 			backup.pop("DBPath", None)
 			backup.pop("IsTemporary", None)
@@ -272,7 +272,6 @@ def abort_task(data, task_id):
 	baseurl = create_baseurl(data, "/api/v1/")
 	log_output("Fetching list from API...", False)
 	headers = create_headers(data)
-	resource_list = []
 	# Check progress state and get info for the running backup if any is running
 	r = requests.post(baseurl + "task/" + str(task_id) + "/abort", headers=headers)
 	if r.status_code == 400:
