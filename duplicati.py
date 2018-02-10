@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 import argparse as ap, sys, os.path
-import select, os
-import time
 import requests
 import urllib
 import yaml
@@ -34,7 +32,7 @@ def main(**args):
 	# Use an alternative config file if --config-file is provided
 	if args.get("config_file", False):
 		config_file = args["config_file"]
-	
+			
 	# Load configuration
 	data = load_config(data)
 
@@ -71,7 +69,7 @@ def main(**args):
 
 	# Get resources
 	if method == "describe":
-		describe(data, args["type"], args["id"])
+		describe_resource(data, args["type"], args["id"])
 
 	# Show logs
 
@@ -97,12 +95,12 @@ def list_resources(data, resource):
 	elif r.status_code != 200:
 		log_output("Error connecting", True, r.status_code)
 		return
-	resource_list = filter_list(r.json(), resource)
+	resource_list = list_filter(r.json(), resource)
 	# Must use safe_dump for python 2 compatibility
 	log_output(yaml.safe_dump(resource_list, default_flow_style=False), True)
 
 # Filter logic for the list function to facilitate readable output
-def filter_list(json_input, resource):
+def list_filter(json_input, resource):
 	resource_list = []
 	if resource == "backups":
 		for key in json_input:
@@ -148,7 +146,7 @@ def get_resources(data, resource, ids):
 	fetch(data, resource, ids, "get")
 
 # Get one resource with all fields
-def describe(data, resource, id):
+def describe_resource(data, resource, id):
 	fetch(data, resource, [id], "describe")
 
 # Fetch resources
@@ -184,13 +182,13 @@ def fetch(data, resource, backup_ids, method):
 
 	# Only get uses a filter
 	if method == "get":
-		resource_list = filter_get(resource_list, resource)
+		resource_list = get_filter(resource_list, resource)
 
 	# Must use safe_dump for python 2 compatibility
 	log_output(yaml.safe_dump(resource_list, default_flow_style=False), True)
 
 # Filter logic for the get function to facilitate readable output
-def filter_get(input, resource):
+def get_filter(input, resource):
 	resource_list = []
 	if resource == "backup":
 		for key in input:
@@ -251,7 +249,6 @@ def run_backup(data, backup_id):
 	baseurl = create_baseurl(data, "/api/v1/")
 	log_output("Fetching list from API...", False)
 	headers = create_headers(data)
-	resource_list = []
 	# Check progress state and get info for the running backup if any is running
 	r = requests.post(baseurl + "backup/" + str(backup_id) + "/run", headers=headers)
 	if r.status_code == 400:
