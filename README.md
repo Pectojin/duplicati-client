@@ -26,28 +26,28 @@ Then you're ready to "install" the application, so clone the repo
     git clone https://github.com/pectojin/duplicati_client
 The Python script should be executeable already, but for convenience you can symlink it
 
-    ln -s /location/of/git/repo/duplicati.py /usr/bin/duplicati
+    ln -s /location/of/git/repo/duplicati_client.py /usr/bin/duc
 On UNIX it should automatically attempt to use Python on your system so now you can just call
 
-    duplicati
+    duc
 And you're good to go. 
 
 # Usage
 To begin log into a server:
 
-    duplicati login https://my.duplicati.server
+    duc login https://my.duplicati.server
 Then you can list resources
 
-    duplicati list backups
+    duc list backups
 Get info
 
-    duplicati get backup 1
+    duc get backup 1
 Run a backup job
 
-    duplicati run backup 1
+    duc run backup 1
 Logout when you're done
 
-    duplicati logout
+    duc logout
 
 # Supported commands (some placeholders until I get it working)
     list      List all resources of a given type
