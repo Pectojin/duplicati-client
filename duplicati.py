@@ -299,6 +299,8 @@ def login(data, input_url=None, password=None):
 			protocol, url = input_url.split(":")
 		elif count == 1:
 			url, port = input_url.split(":")
+		else:
+			url = input_url
 
 	# Update config
 	data["server"]["protocol"] = protocol
