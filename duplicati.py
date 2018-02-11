@@ -147,14 +147,14 @@ def list_filter(json_input, resource):
 
 # Get one or more resources with somewhat limited fields
 def get_resources(data, resource, backup_ids):
-	fetch(data, resource, backup_ids, "get")
+	fetch_resource(data, resource, backup_ids, "get")
 
 # Get one resource with all fields
 def describe_resource(data, resource, backup_id):
-	fetch(data, resource, [backup_id], "describe")
+	fetch_resource(data, resource, [backup_id], "describe")
 
 # Fetch resources
-def fetch(data, resource, backup_ids, method):
+def fetch_resource(data, resource, backup_ids, method):
 	if data.get("token", None) is None:
 		log_output("Not logged in", True)
 		return
@@ -165,22 +165,23 @@ def fetch(data, resource, backup_ids, method):
 	resource_list = []
 	# Check progress state and get info for the running backup if any is running
 	r = requests.get(baseurl + "progressstate", headers=headers)
-	if r.status_code == 400:
-		log_output("Session expired. Please login again", True, r.status_code)
-		return
-	elif r.status_code != 200:
+	if r.status_code != 200:
 		log_output("Error getting progressstate ", False, r.status_code)
+		active_id = None
 	else:
 		progress_state = r.json()
 		active_id = progress_state.get("BackupID", -1)
 	# Iterate over backup_ids and fetch their info
 	for backup_id in backup_ids:
 		r = requests.get(baseurl + resource + "/" + backup_id, headers=headers)
+		if r.status_code == 400:
+			log_output("Session expired. Please login again", True, r.status_code)
+			return
 		if r.status_code != 200:
 			log_output("Error getting backup " + backup_id, True, r.status_code)
 			continue
 		data = r.json()["data"]
-		if data.get("Backup", {}).get("ID", 0) == active_id:
+		if active_id is not None and data.get("Backup", {}).get("ID", 0) == active_id:
 			data["Progress"] = progress_state
 		resource_list.append(data)
 
