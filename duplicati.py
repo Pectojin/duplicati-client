@@ -7,6 +7,7 @@ import yaml
 import getpass
 import hashlib, base64
 import datetime
+from dateutil import tz, parser as dateparser
 
 # Global values
 config_file = "config.yml"
@@ -117,11 +118,16 @@ def list_filter(json_input, resource):
 					"ID": backup.get("ID", ""),
 				}
 			}
+
 			if backup.get('Metadata', {}).get('SourceSizeString') is not None:
 				backup[backup_name]["Source size"] = backup.get('Metadata', {}).get('SourceSizeString'),
 			if schedule is not None:
-				backup[backup_name]["Next run"] = schedule.get('Time', "")
-				backup[backup_name]["Last run"] = schedule.get('LastRun', "")
+				next_run = format_time(schedule.get("Time", ""))
+				if next_run is not None:
+					backup[backup_name]["Next run"] = next_run
+				last_run = format_time(schedule.get("LastRun", ""))
+				if last_run is not None:
+					backup[backup_name]["Last run"] = last_run
 			resource_list.append(backup)
 	elif resource == "notifications":
 		for val in json_input:
@@ -129,9 +135,12 @@ def list_filter(json_input, resource):
 				val.get("Title", ""): {
 					"Backup ID": val.get("BackupID", ""),
 					"Notification ID": val.get("ID", ""),
-					"Timestamp": val.get("Timestamp", ""),
 				}
 			}
+			timestamp = format_time(val.get("Timestamp", ""))
+			if timestamp is not None:
+				notification["Timestamp"] = timestamp
+
 			resource_list.append(notification)
 	elif resource == "serversettings":
 		for key, value in json_input.items():
@@ -214,8 +223,12 @@ def get_filter(json_input, resource):
 
 			schedule = key.get("Schedule", None)
 			if schedule is not None:
-				schedule["Last run"] = schedule.pop('LastRun', None)
-				schedule["Next run"] = schedule.pop('Time', None)
+				next_run = format_time(schedule.pop("Time", ""))
+				if next_run is not None:
+					schedule["Next run"] = next_run
+				last_run = format_time(schedule.pop("LastRun", ""))
+				if last_run is not None:
+					schedule["Last run"] = last_run
 				schedule.pop("AllowedDays", None)
 				schedule.pop("ID", None)
 				schedule.pop("Rule", None)
@@ -412,6 +425,37 @@ def load_config(data):
 	        return data
 	    except yaml.YAMLError as exc:
 	        log_output(exc, True)
+
+def format_time(timestring):
+	# Filter out "unset" time
+	if timestring == "0001-01-01T00:00:00Z":
+		return None
+
+	# We want to fail silently if we're not provided a parsable timestring.
+	try:
+		datetime_object = dateparser.parse(timestring)
+	except Exception as exc:
+		log_output(exc, False)
+		return None
+
+	# Now for comparison
+	now = datetime.datetime.now()
+
+	# Take care of timezones
+	now = now.replace(tzinfo=tz.tzutc()).astimezone(tz.tzlocal())
+	datetime_object = datetime_object.replace(tzinfo=tz.tzutc()).astimezone(tz.tzlocal())
+
+	# Get the delta
+	delta = (now - datetime_object)
+	# Display hours if within 24 hours of now, else display dmy
+	if abs(delta.days) > 1:
+		return datetime_object.strftime("%d/%m/%Y")
+	elif delta.days == 1:
+		return "Yesterday " + datetime_object.strftime("%I:%M %p")
+	elif delta.days == -1:
+		return "Tomorrow " + datetime_object.strftime("%I:%M %p")
+	else:
+		return datetime_object.strftime("%I:%M %p")
 
 # Print the status to stdout
 def display_status(data):
