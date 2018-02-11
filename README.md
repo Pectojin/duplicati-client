@@ -7,12 +7,13 @@ A client daemon and cron mode is also available, allowing to periodically pull i
 Currently the script relies on multiple internal and external libraries:
 
     argparse
+    os.path
     requests
     urllib
     PyYaml
-    json
     getpass
     hashlib
+    base64
     datetime
 
 # Installation
@@ -47,7 +48,7 @@ Logout when you're done
 
     duplicati logout
 
-# Supported commands
+# Supported commands (some placeholders until I get it working)
     list      List all resources of a given type
     get       display breif information on one or many resources
     describe  display detailed information on a specific resource
@@ -61,4 +62,65 @@ Logout when you're done
     daemon    run Duplicati Client as a service
 
 # Daemon mode
-The Duplicati Client will eventually support Daemon mode. The Daemon mode will run in a continous loop and fetch a list of tasks to execute from it's "to-do list" server. On startup a server handling these to-do lists must be provided.
+The Duplicati Client will eventually support daemon mode. The daemon mode will run in a continous loop and fetch a list of tasks to execute from it's "task list" server. On startup a task server must be provided.
+
+# Task server API
+The task server, that daemon mode communicates with, must support the following REST methods:
+
+## Status
+    api/tasks/status
+Returns an empty response with HTTP status code 303 or 304.
+
+303 makes the daemon to fetch the task list
+
+304 makes the daemon to wait until next pool interval
+
+The task server must keep track of this state internally and toggle to 303 when it has tasks that have not been "accepted" or "refused" by the Daemon
+
+## Task list
+    api/tasks
+Returns a JSON object with a list of tasks to be executed by the daemon.
+
+The format must be as follows:
+
+    {
+        "ID": 1,                 # An ID defined by the Task server. Must be unique within 'daemon session'
+        "Operation": "get",      # Any operation supported by the client and not prohibited by client policy
+        "Resources": [           # List containing one or more resources
+            {
+                "Type": backup",     # The resource type
+                "ID": 3              # The resource id
+            }
+        ]
+    }
+Notice that ID and Operation are required fields. The remaining fields depend on the operation called. See client `--help` or the docs when I complete them.
+
+## Result destination
+    api/tasks/<id>/result
+Accepts a JSON object from the daemon describing the result of a task and containing any requested information
+
+Format:
+
+    {
+        "ID": 1,
+        "Status": "completed"         # accepted, refused, completed, error
+        "Data": {
+            "some": "json_result"
+        }
+    }
+
+## Notes
+The daemon will have a configuration options to override the API url, but anything after `api/` must be present.
+
+To support daemon durability each task is logged into a `task-list.yml` on disk allowing the daemon to recover from crashes. This file is periodically updated with status on each task. 
+
+When the daemon fetches the task list it will validate each task and inform the task server whether each task was accepted or rejected. 
+
+The daemon may execute a task immediately, skipping the accepted/rejected update.
+
+Items with invalid formatting and items prohibited by policy are rejected.
+
+Once a task has been completed the daemon sends the result to the server and confirms that the server received the data. 
+
+The task is then removed from the list local task list.
+
