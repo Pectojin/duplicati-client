@@ -64,16 +64,16 @@ Logout when you're done
 # Daemon mode
 The Duplicati Client will eventually support daemon mode. The daemon mode will run in a continous loop and fetch a list of tasks to execute from it's "task list" server. On startup a task server must be provided.
 
-# Task server API
+# Task server API specification
 The task server, that daemon mode communicates with, must support the following REST methods:
 
 ## Status
     api/tasks/status
-Returns an empty response with HTTP status code 303 or 304.
+Returns an empty response with HTTP status code `303` or `304`.
 
-303 makes the daemon to fetch the task list
+`303` makes the daemon to fetch the task list
 
-304 makes the daemon to wait until next pool interval
+`304` makes the daemon to wait until next pool interval
 
 The task server must keep track of this state internally and toggle to 303 when it has tasks that have not been "accepted" or "refused" by the Daemon
 
@@ -108,6 +108,8 @@ Format:
             "some": "json_result"
         }
     }
+
+Must return `200` OK or the daemon will retry later
 
 ## Notes
 The daemon will have a configuration options to override the API url, but anything after `api/` must be present.
