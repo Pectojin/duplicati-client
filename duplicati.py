@@ -6,6 +6,7 @@ import urllib
 import yaml
 import getpass
 import hashlib, base64
+import datetime
 
 # Global values
 config_file = "config.yml"
@@ -327,21 +328,19 @@ def login(data, input_url=None, password=None):
 			log_output("Authentication required", True, r.status_code)
 			password = getpass.getpass('Password:')
 		
-		# Hash password if it's provided, password in config file already hashed
-		if password is not None:
-			log_output("Getting nonce and salt...", False)
-			payload = { 'get-nonce': 1 }
-			r = requests.post(baseurl + "/login.cgi", data=payload)
-			if r.status_code != 200:
-				log_output("Error getting salt from server", True, r.status_code)
-				return
+		log_output("Getting nonce and salt...", False)
+		payload = { 'get-nonce': 1 }
+		r = requests.post(baseurl + "/login.cgi", data=payload)
+		if r.status_code != 200:
+			log_output("Error getting salt from server", True, r.status_code)
+			return
 
-			salt = r.json()["Salt"]
-			data["nonce"] = r.json()["Nonce"]
-			token = unquote(r.cookies["xsrf-token"])
-			log_output("Hashing password...", False)
-			saltedpwd = hashlib.sha256(password.encode() + base64.b64decode(salt)).digest()
-			noncedpwd = hashlib.sha256(base64.b64decode(data["nonce"]) + saltedpwd).digest()
+		salt = r.json()["Salt"]
+		data["nonce"] = r.json()["Nonce"]
+		token = unquote(r.cookies["xsrf-token"])
+		log_output("Hashing password...", False)
+		saltedpwd = hashlib.sha256(password.encode() + base64.b64decode(salt)).digest()
+		noncedpwd = hashlib.sha256(base64.b64decode(data["nonce"]) + saltedpwd).digest()
 
 		log_output("Authenticating... ", False)
 		payload = { "password": base64.b64encode(noncedpwd).decode('utf-8') }
