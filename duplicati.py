@@ -5,8 +5,7 @@ import requests
 import urllib
 import yaml
 import getpass
-import hashlib
-import datetime
+import hashlib, base64
 
 # Global values
 config_file = "config.yml"
@@ -91,8 +90,9 @@ def list_resources(data, resource):
 		return
 	baseurl = create_baseurl(data, "/api/v1/")
 	log_output("Fetching list from API...", False)
+	cookies = create_cookies(data)
 	headers = create_headers(data)
-	r = requests.get(baseurl + resource, headers=headers)
+	r = requests.get(baseurl + resource, headers=headers, cookies=cookies)
 	if r.status_code == 400:
 		log_output("Session expired. Please login again", True, r.status_code)
 		return
@@ -147,24 +147,28 @@ def list_filter(json_input, resource):
 
 # Get one or more resources with somewhat limited fields
 def get_resources(data, resource, backup_ids):
-	fetch_resource(data, resource, backup_ids, "get")
+	if resource == "backup":
+		fetch_backup(data, resource, backup_ids, "get")
+	elif resource == "notification":
+		fetch_notification(data, resource, notification_ids, "get")
 
 # Get one resource with all fields
 def describe_resource(data, resource, backup_id):
-	fetch_resource(data, resource, [backup_id], "describe")
+	fetch_backup(data, resource, [backup_id], "describe")
 
 # Fetch resources
-def fetch_resource(data, resource, backup_ids, method):
+def fetch_backup(data, resource, backup_ids, method):
 	if data.get("token", None) is None:
 		log_output("Not logged in", True)
 		return
 
 	baseurl = create_baseurl(data, "/api/v1/")
 	log_output("Fetching list from API...", False)
+	cookies = create_cookies(data)
 	headers = create_headers(data)
 	resource_list = []
 	# Check progress state and get info for the running backup if any is running
-	r = requests.get(baseurl + "progressstate", headers=headers)
+	r = requests.get(baseurl + "progressstate", headers=headers, cookies=cookies)
 	if r.status_code != 200:
 		log_output("Error getting progressstate ", False, r.status_code)
 		active_id = None
@@ -173,7 +177,7 @@ def fetch_resource(data, resource, backup_ids, method):
 		active_id = progress_state.get("BackupID", -1)
 	# Iterate over backup_ids and fetch their info
 	for backup_id in backup_ids:
-		r = requests.get(baseurl + resource + "/" + backup_id, headers=headers)
+		r = requests.get(baseurl + resource + "/" + backup_id, headers=headers, cookies=cookies)
 		if r.status_code == 400:
 			log_output("Session expired. Please login again", True, r.status_code)
 			return
@@ -207,13 +211,14 @@ def get_filter(json_input, resource):
 			backup.pop("Sources", None)
 			backup.pop("Settings", None)
 
-			schedule = key["Schedule"]
-			schedule["Last run"] = schedule.pop('LastRun', None)
-			schedule["Next run"] = schedule.pop('Time', None)
-			schedule.pop("AllowedDays", None)
-			schedule.pop("ID", None)
-			schedule.pop("Rule", None)
-			schedule.pop("Tags", None)
+			schedule = key.get("Schedule", None)
+			if schedule is not None:
+				schedule["Last run"] = schedule.pop('LastRun', None)
+				schedule["Next run"] = schedule.pop('Time', None)
+				schedule.pop("AllowedDays", None)
+				schedule.pop("ID", None)
+				schedule.pop("Rule", None)
+				schedule.pop("Tags", None)
 
 			progress_state = key.get("Progress", {})
 			progress = {
@@ -253,9 +258,10 @@ def run_backup(data, backup_id):
 
 	baseurl = create_baseurl(data, "/api/v1/")
 	log_output("Fetching list from API...", False)
+	cookies = create_cookies(data)
 	headers = create_headers(data)
 	# Check progress state and get info for the running backup if any is running
-	r = requests.post(baseurl + "backup/" + str(backup_id) + "/run", headers=headers)
+	r = requests.post(baseurl + "backup/" + str(backup_id) + "/run", headers=headers, cookies=cookies)
 	if r.status_code == 400:
 		log_output("Session expired. Please login again", True, r.status_code)
 		return
@@ -272,9 +278,10 @@ def abort_task(data, task_id):
 
 	baseurl = create_baseurl(data, "/api/v1/")
 	log_output("Fetching list from API...", False)
+	cookies = create_cookies(data)
 	headers = create_headers(data)
 	# Check progress state and get info for the running backup if any is running
-	r = requests.post(baseurl + "task/" + str(task_id) + "/abort", headers=headers)
+	r = requests.post(baseurl + "task/" + str(task_id) + "/abort", headers=headers, cookies=cookies)
 	if r.status_code == 400:
 		log_output("Session expired. Please login again", True, r.status_code)
 		return
@@ -314,35 +321,37 @@ def login(data, input_url=None, password=None):
 	if r.status_code == 200:
 		log_output("OK", False, r.status_code)
 		token = unquote(r.cookies["xsrf-token"])
-		log_output("Token: " + token, False)
 	elif r.status_code == 302:
-		log_output("Authentication required", True, r.status_code)
 		# Get password by prompting user if no password was given in-line
 		if password is None:
+			log_output("Authentication required", True, r.status_code)
 			password = getpass.getpass('Password:')
 		
-		log_output("Using provided password...", False)
 		# Hash password if it's provided, password in config file already hashed
 		if password is not None:
 			log_output("Getting nonce and salt...", False)
 			payload = { 'get-nonce': 1 }
 			r = requests.post(baseurl + "/login.cgi", data=payload)
-			if r.status_code == 200:
-				salt = r.json()["Salt"]
-				nonce = r.json()["Nonce"]
-				log_output("salt: " + salt, False)
-				log_output("nonce: " + nonce, False)
-			else:
+			if r.status_code != 200:
 				log_output("Error getting salt from server", True, r.status_code)
+				return
+
+			salt = r.json()["Salt"]
+			data["nonce"] = r.json()["Nonce"]
+			token = unquote(r.cookies["xsrf-token"])
 			log_output("Hashing password...", False)
-			password = hashlib.pbkdf2_hmac('sha256', password, salt, 64)
-			password = hashlib.pbkdf2_hmac('sha256', password, nonce, 64)
-			log_output("hash: " + password, False)
+			saltedpwd = hashlib.sha256(password.encode() + base64.b64decode(salt)).digest()
+			noncedpwd = hashlib.sha256(base64.b64decode(data["nonce"]) + saltedpwd).digest()
 
 		log_output("Authenticating... ", False)
-		payload = { "password": password }
-		r = requests.post(baseurl + "/login.cgi", data=payload)
-		log_output(r.status_code, False)
+		payload = { "password": base64.b64encode(noncedpwd).decode('utf-8') }
+		cookies = { "xsrf-token": token, "session-nonce": data.get("nonce", "") }
+		r = requests.post(baseurl + "/login.cgi", data=payload, cookies=cookies)
+		if r.status_code == 200:
+			log_output("Connected", True, r.status_code)
+			data["session-auth"] = unquote(r.cookies["session-auth"])
+		else:
+			log_output("Error authenticating against the server", True, r.status_code)
 	else:
 		log_output("Error connecting to server", True, r.status_code)
 		return
@@ -371,9 +380,17 @@ def log_output(text, important, code=None):
 
 	print(text + ", code: " + str(code))
 
+# Common function for creating cookies to authenticate against the API
+def create_cookies(data):
+	# return { "xsrf-token": data.get("token", "") }
+	if data.get("nonce", None) is None:
+		return { "xsrf-token": data.get("token", "") }
+	else:
+		return { "xsrf-token": data.get("token", ""), "session-nonce": data.get("nonce", ""), "session-auth": data.get("session-auth", "") }
+
 # Common function for creating headers to authenticate against the API
 def create_headers(data):
-	return { "X-XSRF-Token": data.get("token", "") }
+	return { "X-XSRF-TOKEN": data.get("token", "") }
 
 # Common function for creating a base url
 def create_baseurl(data, additional_path):
@@ -441,7 +458,6 @@ or see --help to see information on usage
 
 # Python 3 vs 2 urllib compatability issues
 def unquote(text):
-	log_output("Python version " + str(sys.version_info[0]) + " detected for unquote call", False)
 	if sys.version_info[0] >= 3:
 		return urllib.parse.unquote(text)
 	else:
