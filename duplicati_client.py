@@ -512,7 +512,7 @@ if __name__ == '__main__':
 		log_output(info(), True)
 		sys.exit(2)
 	# Initialize argument parser and standard optional arguments
-	parser = ap.ArgumentParser(prog='duplicati')
+	parser = ap.ArgumentParser()
 	
 	# Create subparsers
 	subparsers = parser.add_subparsers(title='commands', metavar="<>", help="")
