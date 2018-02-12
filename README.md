@@ -61,6 +61,38 @@ Logout when you're done
     status    return information about the current session
     config    prints the config to stdout
     daemon    run Duplicati Client as a service
+    verbose   Toggle verbose mode
+    params    import parameters from a yaml file
+
+# Parameters file
+Using the command `params` you can specify a parameters file. With this file you can provide most of the optional CLI arguments without having to specify them inline when calling your commands.
+
+The parameters file is set once using the `params` command and then automatically loaded on each call.
+
+You must create the parameters file yourself. An example of a parameters file:
+    
+    password: verysecretpassword
+    verbose: True
+    insecure: True
+
+Then specify that you want to use a parameters file
+
+    duc params ~/.config/duplicati_client/parameters.yml
+
+This will load your password, set verbose mode, and allow insecure connections by default when you run a command.
+
+    Loaded 3 parameters from ~/.config/duplicati_client/parameters.yml
+
+Then, if you're connecting to a different server, simply override the default password by adding the `--password` argument in the CLI.
+
+    duc login localhost --password=othersecretpassword
+
+Verbose is an exception to this rule. It applies session wide and can only be toggled by calling the `verbose` command, which is nonsensical if you have a parameters file enabling it again.
+
+If you need to disable your parameters file, run
+
+    duc params --disable
+
 
 # Daemon mode
 The Duplicati Client will eventually support daemon mode. The daemon mode will run in a continous loop and fetch a list of tasks to execute from it's "task list" server. On startup a task server must be provided.

@@ -25,6 +25,7 @@ def main(**args):
 	config_file = home + "/.config/duplicati_client/config.yml"
 	data = {
 		"last_login": None,
+		"parameters_file": None,
 		"server": {
 			"port": "8200",
 			"protocol": "http",
@@ -40,6 +41,13 @@ def main(**args):
 
 	# Load configuration
 	data = load_config(data)
+
+	# Set parameters file
+	if method == "params":
+		args = set_parameters_file(data, args, args.get("file", None))
+
+	# Load parameters file
+	load_parameters(data, args)
 
 	# Toggle verbosity
 	if method == "verbose":
@@ -472,6 +480,52 @@ def toggle_verbose(data):
 	write_config(data)
 	log_output("verbose mode: " + str(data["verbose"]), True)
 
+# Set parameters file
+def set_parameters(data, args, file=None):
+	if file is None:
+		return
+
+	# Disable parameters file if requests
+	if args.get("disable", False):
+		data.pop("parameters_file", None)
+		write_config(data)
+		log_output("Disabling parameters-file", True)
+		return args
+
+# Load parameters from file
+def load_parameters(data, args):
+	# Check for parameters file
+	file = data.get("parameters_file", None)
+	if file is None:
+		return args
+
+	# Don't load nonexisting files
+	if os.path.isfile(file) is False:
+		return args
+
+	# Load the parameters from the file
+	with open(file, 'r') as file_handle:
+	    try:
+	        parameters_file = yaml.safe_load(file_handle)
+	        log_output("Loaded " + str(len(parameters_file)) + " parameters from " + file, True)
+        	# any arg can be inserted, so currently I see no point in validating what goes in.
+        	for key, value in parameters_file.items():
+        		# Just make sure not to override CLI provided arguments
+        		if args.get(key, None) is None:
+        			args[key] = value
+        	
+        	# Have to manually handle this special case because verbose is a command not an argument
+        	if parameters_file.get("verbose", None) is not None:
+        		data["verbose"] = parameters_file.get("verbose")
+
+        	# Update parameters_file variable in config file
+        	data["parameters_file"] = file
+        	write_config(data)
+        	return args
+	    except yaml.YAMLError as exc:
+	        log_output(exc, True)
+	        return args
+
 # Print the config to stdout
 def display_config(data):
 	log_output(yaml.dump(data, default_flow_style=False), True)
@@ -545,7 +599,6 @@ if __name__ == '__main__':
 	login_parser = subparsers.add_parser('login', help="log into a Duplicati server")
 	login_parser.add_argument('url')
 	login_parser.add_argument('--password', metavar='', help="password, will prompt if not provided")
-	# login_parser.add_argument('--no-auth', action='store_true', help="allow connecting without authentication")
 	login_parser.add_argument('--insecure', action='store_true', help="allow insecure HTTPS connections to the server")
 	login_parser.add_argument('--certfile', metavar='', help="specify the path to a cert file used to validate the certificate authority")
 	login_parser.add_argument('--config-file', action='store', help="specify a non-standard configuration file", metavar='')
@@ -560,7 +613,10 @@ if __name__ == '__main__':
 	subparsers.add_parser('daemon', help="run Duplicati Client as a service")
 	# Subparser for toggling verbose mode
 	subparsers.add_parser('verbose', help="Toggle verbose mode")
-
+	# Subparser for setting a parameter file
+	parameters_file = subparsers.add_parser('params', help="import parameters from a yaml file")
+	parameters_file.add_argument('file', nargs='?', help="path to file containing parameters in yaml format")
+	parameters_file.add_argument('--disable', action='store_true', help="disable the parameters file")
 	# Construct parsers and initialize the main method
 	args = parser.parse_args()
 	main(**vars(args))
