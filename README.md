@@ -49,7 +49,7 @@ Logout when you're done
 
     duc logout
 
-# Supported commands (some placeholders until I get it working)
+# Supported commands
     list      List all resources of a given type
     get       display breif information on one or many resources
     describe  display detailed information on a specific resource
@@ -63,6 +63,8 @@ Logout when you're done
     daemon    run Duplicati Client as a service
     verbose   Toggle verbose mode
     params    import parameters from a yaml file
+
+Some of the commands are placeholders until I get them implemented.
 
 # Parameters file
 Using the command `params` you can specify a parameters file. With this file you can provide most of the optional CLI arguments without having to specify them inline when calling your commands.
