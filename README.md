@@ -55,6 +55,8 @@ Logout when you're done
     describe  display detailed information on a specific resource
     run       run a backup job
     edit      edit a resource on the server
+    export    export a resource from the server to YAMl or JSON format
+    import    import a resource to the server from a YAMl or JSON file
     logs      display the logs for a given job
     login     log into a Duplicati server
     logout    end the current server session

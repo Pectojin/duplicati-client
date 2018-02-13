@@ -737,7 +737,7 @@ if __name__ == '__main__':
 	export_parser.add_argument('--output', choices=["YAML", "JSON", "yaml", "json"], metavar='', help="output YAML or JSON, defaults to YAML")
 	export_parser.add_argument('--output-path', metavar='', help="Path to output the file at")
 	# Subparser for the Import method
-	import_parser = subparsers.add_parser('import', help="import a resource from the server in YAMl or JSON format")
+	import_parser = subparsers.add_parser('import', help="import a resource to the server from a YAMl or JSON file")
 	import_parser.add_argument('type', choices=["backup"], help="the type of resource")
 	import_parser.add_argument('import-file', nargs='?', help="file containing a job configuration in YAML or JSON format")
 	#import_parser.add_argument('--id', metavar='', help="Provide an ID to update an existing backup configuration")
