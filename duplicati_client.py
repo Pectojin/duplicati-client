@@ -537,7 +537,7 @@ def load_parameters(data, args):
         		# Just make sure not to override CLI provided arguments
         		if args.get(key, None) is None:
         			args[key] = value
-        	
+
         	# Have to manually handle this special case because verbose is a command not an argument
         	if parameters_file.get("verbose", None) is not None:
         		data["verbose"] = parameters_file.get("verbose")
@@ -565,22 +565,23 @@ def import_backup(data, import_file, backup_id=None, import_metadata=False):
 	
 	# Don't load nonexisting files
 	if os.path.isfile(import_file) is False:
-		return args
+		log_output(import_file + " not found", True)
+		return
 
 	# Load the import file
 	with open(import_file, 'r') as file_handle:
-		file, extension = splitext(import_file)
+		extension = splitext(import_file)[1]
 		if extension.lower() in ['.yml', '.yaml']:
 		    try:
 		    	backup_config = yaml.safe_load(file_handle)
-		    except yaml.YAMLError as exec:
+		    except yaml.YAMLError:
 		    	log_output("Failed to load file as YAML", True)
 		    	return
     	
 		elif extension.lower() == ".json":
 			try:
 				backup_config = json.load(file_handle)
-			except Exception as exc:
+			except Exception:
 				log_output("Failed to load file as JSON", True)
 				return
 
@@ -589,7 +590,7 @@ def import_backup(data, import_file, backup_id=None, import_metadata=False):
 
 	# Requests rocks. Let's you "file upload" text without referencing an actual file
 	files = {'config': ('backup_config.json', backup_config, 'application/json') }
-	# Will eventually support passphrase encrypted configs, 
+	# Will eventually support passphrase encrypted configs,
 	# but we would need to decrypt them in the client in order to convert them
 	payload = {'passphrase': '', 'import_metadata': import_metadata, 'direct': True }
 	cookies = create_cookies(data)
@@ -636,7 +637,7 @@ def export_backup(data, backup_id, output=None, output_path=None):
 	
 	# Decide on where to output file
 	if output_path is None:
-		output_path = "backup_config_" + str(datetime.datetime.now().strftime("%d.%m.%Y_%I:%M %p")) + filetype
+		output_path = "backup_config_" + str(datetime.datetime.now().strftime("%d.%m.%Y_%I:%M_%p")) + filetype
 	else:
 		output_path = expanduser(output_path)
 
