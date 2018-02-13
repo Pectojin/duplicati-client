@@ -67,7 +67,7 @@ def main(**args):
 	# Login
 	if method == "login":
 		data = login(data, args.get("url", None), args.get("password", None))
-	
+
 	# Logout
 	if method == "logout":
 		data = logout(data)
@@ -544,7 +544,7 @@ def load_parameters(data, args):
 	        log_output(exc, True)
 	        return args
 
-# Export resource wrapper function 
+# Export resource wrapper function
 def export_resource(data, resource, resource_id, output=None, output_path=None):
 	if resource == "backup":
 		export_backup(data, resource_id, output, output_path)
@@ -569,7 +569,7 @@ def export_backup(data, backup_id, output=None, output_path=None):
 	
 	# Decide on where to output file
 	if output_path is None:
-		output_path = "backup_config" + str(datetime.datetime.now()) + filetype 
+		output_path = "backup_config" + str(datetime.datetime.now()) + filetype
 	else:
 		output_path = expanduser(output_path)
 
