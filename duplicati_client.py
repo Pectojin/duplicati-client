@@ -3,7 +3,7 @@ import argparse as ap, sys, os.path
 from os.path import expanduser
 import requests
 import urllib
-import yaml
+import yaml, json
 import getpass
 import hashlib, base64
 import datetime
@@ -44,7 +44,7 @@ def main(**args):
 
 	# Set parameters file
 	if method == "params":
-		args = set_parameters_file(data, args, args.get("file", None))
+		data = set_parameters_file(data, args, args.get("param-file", None))
 
 	# Load parameters file
 	load_parameters(data, args)
@@ -92,7 +92,16 @@ def main(**args):
 
 	# Abort backup
 	if method == "abort":
-  		abort_task(data, args["id"])
+		abort_task(data, args["id"])
+
+	# Import method
+	if method == "import":
+		return
+		#import_backup(data, args["type"], args[""])
+
+	# Export method
+	if method == "export":
+		export_resource(data, args["type"], args["id"], args.get("output", None), args.get("output_path", None))
 
 def list_resources(data, resource):
 	if data.get("token", None) is None:
@@ -172,7 +181,10 @@ def get_resources(data, resource, backup_ids):
 
 # Get one resource with all fields
 def describe_resource(data, resource, backup_id):
-	fetch_backup(data, resource, [backup_id], "describe")
+	result = fetch_backup(data, resource, [backup_id], "describe")
+	# Must use safe_dump for python 2 compatibility
+	log_output(yaml.safe_dump(result, default_flow_style=False), True)
+
 
 # Fetch resources
 def fetch_backup(data, resource, backup_ids, method):
@@ -211,8 +223,7 @@ def fetch_backup(data, resource, backup_ids, method):
 	if method == "get":
 		resource_list = get_filter(resource_list, resource)
 
-	# Must use safe_dump for python 2 compatibility
-	log_output(yaml.safe_dump(resource_list, default_flow_style=False), True)
+	return resource_list
 
 # Filter logic for the get function to facilitate readable output
 def get_filter(json_input, resource):
@@ -473,6 +484,8 @@ def display_status(data):
 		log_output("Not logged in", True)
 	if data.get("last_login", None) is not None:
 		log_output("Last login: " + str(data["last_login"]), True)
+	if data.get("parameters_file", None) is not None:
+		log_output("Parameters file: " + data["parameters_file"], True)
 
 # Toggle verbosity
 def toggle_verbose(data):
@@ -481,7 +494,7 @@ def toggle_verbose(data):
 	log_output("verbose mode: " + str(data["verbose"]), True)
 
 # Set parameters file
-def set_parameters(data, args, file=None):
+def set_parameters_file(data, args, file=None):
 	if file is None:
 		return
 
@@ -490,7 +503,12 @@ def set_parameters(data, args, file=None):
 		data.pop("parameters_file", None)
 		write_config(data)
 		log_output("Disabling parameters-file", True)
-		return args
+		return data
+
+	data["parameters_file"] = file
+	write_config(data)
+	log_output("Setting parameters-file", True)
+	return data
 
 # Load parameters from file
 def load_parameters(data, args):
@@ -507,7 +525,7 @@ def load_parameters(data, args):
 	with open(file, 'r') as file_handle:
 	    try:
 	        parameters_file = yaml.safe_load(file_handle)
-	        log_output("Loaded " + str(len(parameters_file)) + " parameters from " + file, True)
+	        log_output("Loaded " + str(len(parameters_file)) + " parameters from file", True)
         	# any arg can be inserted, so currently I see no point in validating what goes in.
         	for key, value in parameters_file.items():
         		# Just make sure not to override CLI provided arguments
@@ -525,6 +543,52 @@ def load_parameters(data, args):
 	    except yaml.YAMLError as exc:
 	        log_output(exc, True)
 	        return args
+
+# Export resource wrapper function 
+def export_resource(data, resource, resource_id, output=None, output_path=None):
+	if resource == "backup":
+		export_backup(data, resource_id, output, output_path)
+
+# Export backup configuration to either YAML or JSON file
+def export_backup(data, backup_id, output=None, output_path=None):
+	# Get backup config
+	result = fetch_backup(data, "backup", [backup_id], "describe")
+	if result is None or len(result) == 0:
+		log_output("Could not fetch backup", True)
+		return
+	backup = result[0]
+	# Strip DisplayNames and Progress
+	backup.pop("DisplayNames", None)
+	backup.pop("Progress", None)
+
+	# YAML or JSON?
+	if output in ["JSON", "json"]:
+		filetype = ".json"
+	else:
+		filetype = ".yml"
+	
+	# Decide on where to output file
+	if output_path is None:
+		output_path = "backup_config" + str(datetime.datetime.now()) + filetype 
+	else:
+		output_path = expanduser(output_path)
+
+	# Check if output folder exists
+	directory = os.path.dirname(output_path)
+	if directory != '' and not os.path.exists(directory):
+		log_output("Created directory \"" + directory + "\"", True)
+		os.makedirs(directory)
+	# Check if output file exists
+	if os.path.isfile(output_path) is True:
+		agree = input('File already exists, overwrite? [Y/n]:')
+		if agree not in ["Y", "y", "yes", "YES", ""]:
+			return
+	with open(output_path, 'w') as file:
+		if filetype == ".json":
+			file.write(json.dumps(backup, indent=4, default=str))
+		else:
+			file.write(yaml.dump(backup, default_flow_style=False))
+	return
 
 # Print the config to stdout
 def display_config(data):
@@ -572,14 +636,14 @@ if __name__ == '__main__':
 	subparsers = parser.add_subparsers(title='commands', metavar="<>", help="")
 	# Subparser for the List method
 	list_parser = subparsers.add_parser('list', help="List all resources of a given type")
-	list_parser.add_argument('type', choices=["backups", "restores", "notifications", "serversettings"], help="the type of resource, e.g. backup or restore job")
+	list_parser.add_argument('type', choices=["backups", "restores", "notifications", "serversettings"], help="the type of resource")
 	# Subparser for the Get method
 	get_parser = subparsers.add_parser('get', help="display breif information on one or many resources")
-	get_parser.add_argument('type', choices=["backup"], help="the type of resource, e.g. backup or restore job")
+	get_parser.add_argument('type', choices=["backup"], help="the type of resource")
 	get_parser.add_argument('id', nargs='+', help="one or more ID's to look up")
 	# Subparser for the Describe method
 	describe_parser = subparsers.add_parser('describe', help="display detailed information on a specific resource")
-	describe_parser.add_argument('type', choices=["backup"], help="the type of resource, e.g. backup or restore job")
+	describe_parser.add_argument('type', choices=["backup"], help="the type of resource")
 	describe_parser.add_argument('id', help="the ID of the resource to look up")
 	# Subparser for the Run method
 	run_parser = subparsers.add_parser('run', help="run a backup job")
@@ -589,11 +653,22 @@ if __name__ == '__main__':
 	abort_parser.add_argument('id', help="the ID of the task to abort")
 	# Subparser for the Edit method
 	edit_parser = subparsers.add_parser('edit', help="edit a resource on the server")
-	edit_parser.add_argument('type', help="the type of resource, e.g. backup or restore job")
+	edit_parser.add_argument('type', help="the type of resource")
 	edit_parser.add_argument('id', help="the ID of the resource to edit")
+	# Subparser for the Export method
+	export_parser = subparsers.add_parser('export', help="export a resource from the server to YAMl or JSON format")
+	export_parser.add_argument('type', choices=["backup"], help="the type of resource")
+	export_parser.add_argument('id', help="the ID of the resource to export")
+	export_parser.add_argument('--output', choices=["YAML", "JSON", "yaml", "json"], metavar='', help="output YAML or JSON, defaults to YAML")
+	export_parser.add_argument('--output-path', metavar='', help="Path to output the file at")
+	# Subparser for the Import method
+	import_parser = subparsers.add_parser('import', help="import a resource from the server in YAMl or JSON format")
+	import_parser.add_argument('type', choices=["backup"], help="the type of resource")
+	import_parser.add_argument('import-file', nargs='?', help="file containing a job configuration in YAML or JSON format")
+	import_parser.add_argument('--id', metavar='', help="Provide an ID to update an existing backup configuration")
 	# Subparser for the Logs method
 	logs_parser = subparsers.add_parser('logs', help="display the logs for a given job")
-	logs_parser.add_argument('type', choices=["backup", "restore", "general", "live"],help="the type of resource, e.g. backup or restore job")
+	logs_parser.add_argument('type', choices=["backup", "restore", "general", "live"],help="the type of resource")
 	logs_parser.add_argument('id', nargs='?', help="If applicable")
 	# Subparser for the Login method
 	login_parser = subparsers.add_parser('login', help="log into a Duplicati server")
@@ -602,7 +677,6 @@ if __name__ == '__main__':
 	login_parser.add_argument('--insecure', action='store_true', help="allow insecure HTTPS connections to the server")
 	login_parser.add_argument('--certfile', metavar='', help="specify the path to a cert file used to validate the certificate authority")
 	login_parser.add_argument('--config-file', action='store', help="specify a non-standard configuration file", metavar='')
-
 	# Subparser for the Logout method
 	subparsers.add_parser('logout', help="end the current server session")
 	# Subparser for the Status method
@@ -614,9 +688,9 @@ if __name__ == '__main__':
 	# Subparser for toggling verbose mode
 	subparsers.add_parser('verbose', help="Toggle verbose mode")
 	# Subparser for setting a parameter file
-	parameters_file = subparsers.add_parser('params', help="import parameters from a yaml file")
-	parameters_file.add_argument('file', nargs='?', help="path to file containing parameters in yaml format")
-	parameters_file.add_argument('--disable', action='store_true', help="disable the parameters file")
+	parameters_file_parser = subparsers.add_parser('params', help="import parameters from a YAML file")
+	parameters_file_parser.add_argument('param-file', nargs='?', help="path to file containing parameters in YAML format")
+	parameters_file_parser.add_argument('--disable', action='store_true', help="disable the parameters file")
 	# Construct parsers and initialize the main method
 	args = parser.parse_args()
 	main(**vars(args))
