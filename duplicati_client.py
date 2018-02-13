@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import argparse as ap, sys, os.path
-from os.path import expanduser
+from os.path import expanduser, splitext
 import requests
 import urllib
 import yaml, json
@@ -96,8 +96,7 @@ def main(**args):
 
 	# Import method
 	if method == "import":
-		return
-		#import_backup(data, args["type"], args[""])
+		import_resource(data, args["type"], args["import-file"], args.get("id", None), args.get("import-metadata", False))
 
 	# Export method
 	if method == "export":
@@ -107,6 +106,12 @@ def list_resources(data, resource):
 	if data.get("token", None) is None:
 		log_output("Not logged in", True)
 		return
+	resource_list = fetch_resource_list(data, resource)
+	resource_list = list_filter(resource_list, resource)
+	# Must use safe_dump for python 2 compatibility
+	log_output(yaml.safe_dump(resource_list, default_flow_style=False), True)
+
+def fetch_resource_list(data, resource):
 	baseurl = create_baseurl(data, "/api/v1/")
 	log_output("Fetching list from API...", False)
 	cookies = create_cookies(data)
@@ -118,9 +123,8 @@ def list_resources(data, resource):
 	elif r.status_code != 200:
 		log_output("Error connecting", True, r.status_code)
 		return
-	resource_list = list_filter(r.json(), resource)
-	# Must use safe_dump for python 2 compatibility
-	log_output(yaml.safe_dump(resource_list, default_flow_style=False), True)
+	else:
+		return r.json()
 
 # Filter logic for the list function to facilitate readable output
 def list_filter(json_input, resource):
@@ -175,19 +179,19 @@ def list_filter(json_input, resource):
 # Get one or more resources with somewhat limited fields
 def get_resources(data, resource, backup_ids):
 	if resource == "backup":
-		fetch_backup(data, resource, backup_ids, "get")
+		fetch_backups(data, resource, backup_ids, "get")
 	elif resource == "notification":
 		fetch_notification(data, resource, notification_ids, "get")
 
 # Get one resource with all fields
 def describe_resource(data, resource, backup_id):
-	result = fetch_backup(data, resource, [backup_id], "describe")
+	result = fetch_backups(data, resource, [backup_id], "describe")
 	# Must use safe_dump for python 2 compatibility
 	log_output(yaml.safe_dump(result, default_flow_style=False), True)
 
 
 # Fetch resources
-def fetch_backup(data, resource, backup_ids, method):
+def fetch_backups(data, resource, backup_ids, method):
 	if data.get("token", None) is None:
 		log_output("Not logged in", True)
 		return
@@ -359,7 +363,7 @@ def login(data, input_url=None, password=None):
 		if password is None:
 			log_output("Authentication required", True, r.status_code)
 			password = getpass.getpass('Password:')
-		
+
 		log_output("Getting nonce and salt...", False)
 		payload = { 'get-nonce': 1 }
 		r = requests.post(baseurl + "/login.cgi", data=payload)
@@ -424,11 +428,15 @@ def create_headers(data):
 	return { "X-XSRF-TOKEN": data.get("token", "") }
 
 # Common function for creating a base url
-def create_baseurl(data, additional_path):
+def create_baseurl(data, additional_path, append_token=False):
 	protocol = data["server"]["protocol"]
 	url = data["server"]["url"]
 	port = data["server"]["port"]
-	return protocol + "://" + url + ":" + port + additional_path
+	baseurl = protocol + "://" + url + ":" + port + additional_path
+	if append_token is True:
+		baseurl += "?x-xsrf-token=" + quote(data.get("token", ''))
+
+	return baseurl
 
 # Load the configration from disk - Falls back to creating a default config if none exists
 def load_config(data):
@@ -544,6 +552,58 @@ def load_parameters(data, args):
 	        log_output(exc, True)
 	        return args
 
+# Import resource wrapper function
+def import_resource(data, resource, import_file, backup_id=None, import_metadata=False):
+	if resource == "backup":
+		import_backup(data, import_file, backup_id, import_metadata)
+
+# Import backup configuration from a YAML or JSON file
+def import_backup(data, import_file, backup_id=None, import_metadata=False):
+	# Determine if we're importing a new backup or updating an existing backup
+	if backup_id is None:
+		baseurl = create_baseurl(data, "/api/v1/backups/import", True)
+	else:
+		baseurl = create_baseurl(data, "/api/v1/backup/")
+	
+	# Don't load nonexisting files
+	if os.path.isfile(import_file) is False:
+		return args
+
+	# Load the import file
+	with open(import_file, 'r') as file_handle:
+		file, extension = splitext(import_file)
+		if extension.lower() in ['.yml', '.yaml']:
+		    try:
+		    	backup_config = yaml.safe_load(file_handle)
+		    except yaml.YAMLError as exec:
+		    	log_output("Failed to load file as YAML", True)
+		    	return
+    	
+		elif extension.lower() == ".json":
+			try:
+				backup_config = json.load(file_handle)
+			except Exception as exc:
+				log_output("Failed to load file as JSON", True)
+				return
+
+	# Prepare the imported JSON object as a string
+	backup_config = json.dumps(backup_config, default=str)
+
+	# Requests rocks. Let's you "file upload" text without referencing an actual file
+	files = {'config': ('backup_config.json', backup_config, 'application/json') }
+	# Will eventually support passphrase encrypted configs, 
+	# but we would need to decrypt them in the client in order to convert them
+	payload = {'passphrase': '', 'import_metadata': import_metadata, 'direct': True }
+	cookies = create_cookies(data)
+	r = requests.post(baseurl, files=files, cookies=cookies, data=payload)
+	if r.status_code == 400:
+		log_output("Session expired. Please login again", True, r.status_code)
+		return
+	elif r.status_code != 200:
+		log_output("Error importing backup configuration ", True, r.status_code)
+		return
+	log_output("Backup job created", True)
+
 # Export resource wrapper function
 def export_resource(data, resource, resource_id, output=None, output_path=None):
 	if resource == "backup":
@@ -552,14 +612,23 @@ def export_resource(data, resource, resource_id, output=None, output_path=None):
 # Export backup configuration to either YAML or JSON file
 def export_backup(data, backup_id, output=None, output_path=None):
 	# Get backup config
-	result = fetch_backup(data, "backup", [backup_id], "describe")
+	result = fetch_backups(data, "backup", [backup_id], "describe")
 	if result is None or len(result) == 0:
 		log_output("Could not fetch backup", True)
 		return
 	backup = result[0]
 	# Strip DisplayNames and Progress
-	backup.pop("DisplayNames", None)
+	# backup.pop("DisplayNames", None)
 	backup.pop("Progress", None)
+
+	# Fetch server version
+	systeminfo = fetch_resource_list(data, "systeminfo")
+
+	if systeminfo.get("ServerVersion", None) is None:
+		log_output("Error exporting backup", True)
+		return
+
+	backup["CreatedByVersion"] = systeminfo["ServerVersion"]
 
 	# YAML or JSON?
 	if output in ["JSON", "json"]:
@@ -617,12 +686,19 @@ To begin log into a server:
 or see --help to see information on usage
 """
 
-# Python 3 vs 2 urllib compatability issues
+# Python 3 vs 2 urllib compatibility issues
 def unquote(text):
 	if sys.version_info[0] >= 3:
 		return urllib.parse.unquote(text)
 	else:
 		return urllib.unquote(text)
+
+# More urllib compatibility issues
+def quote(text):
+	if sys.version_info[0] >= 3:
+		return urllib.parse.quote_plus(text)
+	else:
+		return urllib.quote_plus(text)
 
 # argparse argument logic
 if __name__ == '__main__':
@@ -636,7 +712,7 @@ if __name__ == '__main__':
 	subparsers = parser.add_subparsers(title='commands', metavar="<>", help="")
 	# Subparser for the List method
 	list_parser = subparsers.add_parser('list', help="List all resources of a given type")
-	list_parser.add_argument('type', choices=["backups", "restores", "notifications", "serversettings"], help="the type of resource")
+	list_parser.add_argument('type', choices=["backups", "restores", "notifications", "serversettings", "systeminfo"], help="the type of resource")
 	# Subparser for the Get method
 	get_parser = subparsers.add_parser('get', help="display breif information on one or many resources")
 	get_parser.add_argument('type', choices=["backup"], help="the type of resource")
@@ -665,7 +741,8 @@ if __name__ == '__main__':
 	import_parser = subparsers.add_parser('import', help="import a resource from the server in YAMl or JSON format")
 	import_parser.add_argument('type', choices=["backup"], help="the type of resource")
 	import_parser.add_argument('import-file', nargs='?', help="file containing a job configuration in YAML or JSON format")
-	import_parser.add_argument('--id', metavar='', help="Provide an ID to update an existing backup configuration")
+	#import_parser.add_argument('--id', metavar='', help="Provide an ID to update an existing backup configuration")
+	import_parser.add_argument('--import-metadata', action='store_true', help="Import the metadata as well as the configuration")
 	# Subparser for the Logs method
 	logs_parser = subparsers.add_parser('logs', help="display the logs for a given job")
 	logs_parser.add_argument('type', choices=["backup", "restore", "general", "live"],help="the type of resource")
