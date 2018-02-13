@@ -113,7 +113,7 @@ def list_resources(data, resource):
 
 def fetch_resource_list(data, resource):
 	baseurl = create_baseurl(data, "/api/v1/")
-	log_output("Fetching list from API...", False)
+	log_output("Fetching " + resource + " list from API...", False)
 	cookies = create_cookies(data)
 	headers = create_headers(data)
 	r = requests.get(baseurl + resource, headers=headers, cookies=cookies)
@@ -197,7 +197,7 @@ def fetch_backups(data, resource, backup_ids, method):
 		return
 
 	baseurl = create_baseurl(data, "/api/v1/")
-	log_output("Fetching list from API...", False)
+	log_output("Fetching backup list from API...", False)
 	cookies = create_cookies(data)
 	headers = create_headers(data)
 	resource_list = []
@@ -294,7 +294,6 @@ def run_backup(data, backup_id):
 		return
 
 	baseurl = create_baseurl(data, "/api/v1/")
-	log_output("Fetching list from API...", False)
 	cookies = create_cookies(data)
 	headers = create_headers(data)
 	# Check progress state and get info for the running backup if any is running
@@ -314,7 +313,6 @@ def abort_task(data, task_id):
 		return
 
 	baseurl = create_baseurl(data, "/api/v1/")
-	log_output("Fetching list from API...", False)
 	cookies = create_cookies(data)
 	headers = create_headers(data)
 	# Check progress state and get info for the running backup if any is running
@@ -638,7 +636,7 @@ def export_backup(data, backup_id, output=None, output_path=None):
 	
 	# Decide on where to output file
 	if output_path is None:
-		output_path = "backup_config" + str(datetime.datetime.now()) + filetype
+		output_path = "backup_config_" + str(datetime.datetime.now().strftime("%d.%m.%Y_%I:%M %p")) + filetype
 	else:
 		output_path = expanduser(output_path)
 
@@ -657,7 +655,7 @@ def export_backup(data, backup_id, output=None, output_path=None):
 			file.write(json.dumps(backup, indent=4, default=str))
 		else:
 			file.write(yaml.dump(backup, default_flow_style=False))
-	return
+	log_output("Created " + output_path, True)
 
 # Print the config to stdout
 def display_config(data):
