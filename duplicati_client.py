@@ -115,7 +115,7 @@ def main(**args):
     # Import method
     if method == "import":
         import_type = args.get("type", None)
-        import_file = args.get("import_file", None)
+        import_file = args.get("import-file", None)
         import_id = args.get("id", None)
         import_meta = args.get("import-metadata", False)
         import_resource(data, import_type, import_file, import_id, import_meta)
@@ -221,13 +221,24 @@ def list_filter(json_input, resource):
 # Get one or more resources with somewhat limited fields
 def get_resources(data, resource_type, resource_id):
     if resource_type == "backup":
-        backups = fetch_backups(data, resource_type, resource_id, "get")
-        message = yaml.safe_dump(backups, default_flow_style=False)
-        log_output(message, True, 200)
+        result = fetch_backups(data, resource_id, "get")
     elif resource_type == "notification":
         result = fetch_notifications(data, resource_id, "get")
-        message = yaml.safe_dump(result, default_flow_style=False)
-        log_output(message, True, 200)
+
+    message = yaml.safe_dump(result, default_flow_style=False)
+    log_output(message, True, 200)
+
+
+# Get one resource with all fields
+def describe_resource(data, resource_type, resource_id):
+    if resource_type == "backup":
+        result = fetch_backups(data, [resource_id], "describe")
+        # Must use safe_dump for python 2 compatibility
+    elif resource_type == "notification":
+        result = fetch_notifications(data, [resource_id], "describe")
+
+    message = yaml.safe_dump(result, default_flow_style=False)
+    log_output(message, True, 200)
 
 
 # Fetch notifications
@@ -235,32 +246,65 @@ def fetch_notifications(data, notification_ids, method):
     verify_token(data)
 
     log_output("Fetching notifications list from API...", False)
+    baseurl = create_baseurl(data, "/api/v1/notifications")
+    cookies = create_cookies(data)
+    headers = create_headers(data)
+    notification_list = []
+    r = requests.get(baseurl, headers=headers, cookies=cookies)
+    if r.status_code == 400:
+        message = "Session expired. Please login again"
+        log_output(message, True, r.status_code)
+        sys.exit(2)
+    if r.status_code != 200:
+        id_list = ''.join(notification_ids, ", ")
+        message = "Error getting notifications " + id_list
+        log_output(message, True, r.status_code)
+    else:
+        data = r.json()
 
-    return
+    for notification in data:
+        notification_id = notification.get("ID", -1)
+        if str(notification_id) in notification_ids:
+            notification_list.append(notification)
+
+    # Only get uses a filter
+    if method == "get":
+        notification_list = notification_filter(notification_list)
+
+    return notification_list
 
 
 # Filter logic for the notification get command
 def notification_filter(json_input):
-    return
+    notification_list = []
+    for key in json_input:
+        title = key.get("Title", "Notification")
+        notification = {
+            title: {
+                "Backup ID": key.get("BackupID", ""),
+                "Notification ID": key.get("ID", ""),
+                "Message": key.get("Message", ""),
+                "Type": key.get("Type", ""),
+            }
+        }
+        timestamp = format_time(key.get("Timestamp", ""))
+        if timestamp is not None:
+            notification[title]["Timestamp"] = timestamp
 
+        notification_list.append(notification)
 
-# Get one resource with all fields
-def describe_resource(data, resource, backup_id):
-    result = fetch_backups(data, resource, [backup_id], "describe")
-    # Must use safe_dump for python 2 compatibility
-    message = yaml.safe_dump(result, default_flow_style=False)
-    log_output(message, True, 200)
+    return notification_list
 
 
 # Fetch backups
-def fetch_backups(data, resource, backup_ids, method):
+def fetch_backups(data, backup_ids, method):
     verify_token(data)
 
     log_output("Fetching backup list from API...", False)
     baseurl = create_baseurl(data, "/api/v1/progressstate")
     cookies = create_cookies(data)
     headers = create_headers(data)
-    resource_list = []
+    backup_list = []
     # Check progress state and get info for the running backup
     r = requests.get(baseurl, headers=headers, cookies=cookies)
     if r.status_code != 200:
@@ -270,7 +314,7 @@ def fetch_backups(data, resource, backup_ids, method):
         progress_state = r.json()
         active_id = progress_state.get("BackupID", -1)
 
-    baseurl = create_baseurl(data, "/api/v1/" + resource + "/")
+    baseurl = create_baseurl(data, "/api/v1/backup/")
     # Iterate over backup_ids and fetch their info
     for backup_id in backup_ids:
         r = requests.get(baseurl + backup_id, headers=headers, cookies=cookies)
@@ -287,21 +331,21 @@ def fetch_backups(data, resource, backup_ids, method):
         item_id = data.get("Backup", {}).get("ID", 0)
         if active_id is not None and item_id == active_id:
             data["Progress"] = progress_state
-        resource_list.append(data)
+        backup_list.append(data)
 
-    if len(resource_list) == 0:
+    if len(backup_list) == 0:
         sys.exit(2)
 
     # Only get uses a filter
     if method == "get":
-        resource_list = backup_filter(resource_list, resource)
+        backup_list = backup_filter(backup_list)
 
-    return resource_list
+    return backup_list
 
 
 # Filter logic for the fetch backup/backups methods
-def backup_filter(json_input, resource):
-    resource_list = []
+def backup_filter(json_input):
+    backup_list = []
     for key in json_input:
         backup = key["Backup"]
         backup.pop("DBPath", None)
@@ -358,9 +402,9 @@ def backup_filter(json_input, resource):
         key["Schedule"] = schedule
         key["Progress"] = progress
         key.pop("DisplayNames", None)
-        resource_list.append(key)
+        backup_list.append(key)
 
-    return resource_list
+    return backup_list
 
 
 # Call the API to schedule a backup run next
@@ -770,7 +814,7 @@ def export_resource(data, resource, resource_id, output=None, path=None):
 # Export backup configuration to either YAML or JSON file
 def export_backup(data, backup_id, output=None, path=None):
     # Get backup config
-    result = fetch_backups(data, "backup", [backup_id], "describe")
+    result = fetch_backups(data, [backup_id], "describe")
     if result is None or len(result) == 0:
         log_output("Could not fetch backup", True)
         return
@@ -893,7 +937,7 @@ if __name__ == '__main__':
     message = "display breif information on one or many resources"
     get_parser = subparsers.add_parser('get', help=message)
     message = "the type of resource"
-    choices = ["backup"]
+    choices = ["backup", "notification"]
     get_parser.add_argument('type', choices=choices, help=message)
     message = "one or more ID's to look up"
     get_parser.add_argument('id', nargs='+', help=message)
@@ -902,7 +946,11 @@ if __name__ == '__main__':
     message = "display detailed information on a specific resource"
     describe_parser = subparsers.add_parser('describe', help=message)
     message = "the type of resource"
-    describe_parser.add_argument('type', choices=["backup"], help=message)
+    choices = [
+        "backup",
+        "notification"
+    ]
+    describe_parser.add_argument('type', choices=choices, help=message)
     message = "the ID of the resource to look up"
     describe_parser.add_argument('id', help=message)
 
