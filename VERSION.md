@@ -2,9 +2,12 @@
 Version 0.1.0 alpha
 
 ## 0.1.0 alpha (fec0cb7)
-Major overhaul of code style to improve readability and adhere to PEP8 style guide. 
+Major overhaul of code style to improve readability and adhere to PEP8 style guide.
+
 Added local token expiration checks
+
 Consolidated token verification in single function
+
 Added get and describe functionality for notifications
 
 ## 0.0.4 notes (b485e99)
