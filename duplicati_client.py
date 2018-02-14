@@ -840,7 +840,7 @@ def export_backup(data, backup_id, output=None, path=None):
 
     # Decide on where to output file
     if path is None:
-        time = datetime.datetime.now().strftime("%d.%m.%Y_%I:%M_%p")
+        time = datetime.datetime.now().strftime("%d.%m.%Y_%I.%M_%p")
         path = "backup_config_" + str(time) + filetype
     else:
         path = expanduser(path)
