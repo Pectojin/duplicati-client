@@ -179,9 +179,11 @@ def list_filter(json_input, resource):
 # Get one or more resources with somewhat limited fields
 def get_resources(data, resource, backup_ids):
 	if resource == "backup":
-		fetch_backups(data, resource, backup_ids, "get")
+		backups = fetch_backups(data, resource, backup_ids, "get")
+		log_output(yaml.safe_dump(backups, default_flow_style=False), True)
 	elif resource == "notification":
-		fetch_notification(data, resource, notification_ids, "get")
+		notification = fetch_notification(data, resource, notification_ids, "get")
+		log_output(yaml.safe_dump(notification, default_flow_style=False), True)
 
 # Get one resource with all fields
 def describe_resource(data, resource, backup_id):
