@@ -16,9 +16,21 @@ from dateutil import tz
 from os.path import expanduser
 from os.path import splitext
 
-# Global values
+# Default values
 config_file = "config.yml"
 verbose = True
+data = {
+    "last_login": None,
+    "parameters_file": None,
+    "server": {
+        "port": "8200",
+        "protocol": "http",
+        "url": "localhost",
+    },
+    'token': None,
+    'token_expires': None,
+    'verbose': True
+}
 
 
 def main(**args):
@@ -28,20 +40,10 @@ def main(**args):
     # Default values
     global verbose
     global config_file
+    global data
     # Detect home dir for config file
     home = expanduser("~")
     config_file = home + "/.config/duplicati_client/config.yml"
-    data = {
-        "last_login": None,
-        "parameters_file": None,
-        "server": {
-            "port": "8200",
-            "protocol": "http",
-            "url": "localhost",
-        },
-        'token': None,
-        'verbose': True
-    }
 
     # Use an alternative config file if --config-file is provided
     if args.get("config_file", False):
@@ -52,7 +54,8 @@ def main(**args):
 
     # Set parameters file
     if method == "params":
-        data = set_parameters_file(data, args, args.get("param-file", None))
+        param_file = args.get("param-file", None)
+        data = set_parameters_file(data, args, param_file)
 
     # Load parameters file
     load_parameters(data, args)
@@ -74,7 +77,9 @@ def main(**args):
 
     # Login
     if method == "login":
-        data = login(data, args.get("url", None), args.get("password", None))
+        url = args.get("url", None)
+        password = args.get("password", None)
+        data = login(data, url, password)
 
     # Logout
     if method == "logout":
@@ -82,38 +87,50 @@ def main(**args):
 
     # List resources
     if method == "list":
-        list_resources(data, args["type"])
+        resource_type = args.get("type", None)
+        list_resources(data, resource_type)
 
     # Get resources
     if method == "get":
-        get_resources(data, args["type"], args["id"])
+        resource_type = args.get("type", None)
+        resource_id = args.get("id", None)
+        get_resources(data, resource_type, resource_id)
 
     # Get resources
     if method == "describe":
-        describe_resource(data, args["type"], args["id"])
-
-    # Show logs
+        resource_type = args.get("type", None)
+        resource_id = args.get("id", None)
+        describe_resource(data, resource_type, resource_id)
 
     # Run backup
     if method == "run":
-        run_backup(data, args["id"])
+        backup_id = args.get("id", None)
+        run_backup(data, backup_id)
 
     # Abort backup
     if method == "abort":
-        abort_task(data, args["id"])
+        backup_id = args.get("id", None)
+        abort_task(data, backup_id)
 
     # Import method
     if method == "import":
-        import_resource(data, args["type"], args["import-file"], args.get("id", None), args.get("import-metadata", False))
+        import_type = args.get("type", None)
+        import_file = args.get("import_file", None)
+        import_id = args.get("id", None)
+        import_meta = args.get("import-metadata", False)
+        import_resource(data, import_type, import_file, import_id, import_meta)
 
     # Export method
     if method == "export":
-        export_resource(data, args["type"], args["id"], args.get("output", None), args.get("output_path", None))
+        resource_type = args.get("type", None)
+        resource_id = args.get("id", None)
+        output_type = args.get("output", None)
+        path = args.get("output_path", None)
+        export_resource(data, resource_type, resource_id, output_type, path)
+
 
 def list_resources(data, resource):
-    if data.get("token", None) is None:
-        log_output("Not logged in", True)
-        sys.exit(2)
+    verify_token(data)
 
     resource_list = fetch_resource_list(data, resource)
     resource_list = list_filter(resource_list, resource)
@@ -124,6 +141,7 @@ def list_resources(data, resource):
 
     # Must use safe_dump for python 2 compatibility
     log_output(yaml.safe_dump(resource_list, default_flow_style=False), True)
+
 
 def fetch_resource_list(data, resource):
     baseurl = create_baseurl(data, "/api/v1/")
@@ -140,6 +158,7 @@ def fetch_resource_list(data, resource):
     else:
         return r.json()
 
+
 # Filter logic for the list function to facilitate readable output
 def list_filter(json_input, resource):
     resource_list = []
@@ -155,15 +174,20 @@ def list_filter(json_input, resource):
             }
 
             if backup.get('Metadata', {}).get('SourceSizeString') is not None:
-                backup[backup_name]["Source size"] = backup.get('Metadata', {}).get('SourceSizeString'),
+                size = backup.get('Metadata', {}).get('SourceSizeString')
+                backup[backup_name]["Source size"] = size
+
             if schedule is not None:
                 next_run = format_time(schedule.get("Time", ""))
                 if next_run is not None:
                     backup[backup_name]["Next run"] = next_run
+
                 last_run = format_time(schedule.get("LastRun", ""))
                 if last_run is not None:
                     backup[backup_name]["Last run"] = last_run
+
             resource_list.append(backup)
+
     elif resource == "notifications":
         for val in json_input:
             notification = {
@@ -177,27 +201,45 @@ def list_filter(json_input, resource):
                 notification["Timestamp"] = timestamp
 
             resource_list.append(notification)
+
     elif resource == "serversettings":
         for key, value in json_input.items():
             setting = {
-                    key: {
+                key: {
                     "value": value
                 }
             }
+
             resource_list.append(setting)
     else:
         resource_list = json_input
 
     return resource_list
 
+
 # Get one or more resources with somewhat limited fields
-def get_resources(data, resource, backup_ids):
-    if resource == "backup":
-        backups = fetch_backups(data, resource, backup_ids, "get")
+def get_resources(data, resource_type, resource_id):
+    if resource_type == "backup":
+        backups = fetch_backups(data, resource_type, resource_id, "get")
         log_output(yaml.safe_dump(backups, default_flow_style=False), True)
-    elif resource == "notification":
-        notification = fetch_notification(data, resource, notification_ids, "get")
-        log_output(yaml.safe_dump(notification, default_flow_style=False), True)
+    elif resource_type == "notification":
+        result = fetch_notifications(data, resource_id, "get")
+        log_output(yaml.safe_dump(result, default_flow_style=False), True)
+
+
+# Fetch notifications
+def fetch_notifications(data, notification_ids, method):
+    verify_token(data)
+
+    log_output("Fetching notifications list from API...", False)
+
+    return
+
+
+# Filter logic for the notification get command
+def notification_filter(json_input):
+    return
+
 
 # Get one resource with all fields
 def describe_resource(data, resource, backup_id):
@@ -206,37 +248,40 @@ def describe_resource(data, resource, backup_id):
     log_output(yaml.safe_dump(result, default_flow_style=False), True)
 
 
-# Fetch resources
+# Fetch backups
 def fetch_backups(data, resource, backup_ids, method):
-    if data.get("token", None) is None:
-        log_output("Not logged in", True)
-        sys.exit(2)
+    verify_token(data)
 
-    baseurl = create_baseurl(data, "/api/v1/")
     log_output("Fetching backup list from API...", False)
+    baseurl = create_baseurl(data, "/api/v1/progressstate")
     cookies = create_cookies(data)
     headers = create_headers(data)
     resource_list = []
-    # Check progress state and get info for the running backup if any is running
-    r = requests.get(baseurl + "progressstate", headers=headers, cookies=cookies)
+    # Check progress state and get info for the running backup
+    r = requests.get(baseurl, headers=headers, cookies=cookies)
     if r.status_code != 200:
         log_output("Error getting progressstate ", False, r.status_code)
         active_id = None
     else:
         progress_state = r.json()
         active_id = progress_state.get("BackupID", -1)
+
+    baseurl = create_baseurl(data, "/api/v1/" + resource + "/")
     # Iterate over backup_ids and fetch their info
     for backup_id in backup_ids:
-        r = requests.get(baseurl + resource + "/" + backup_id, headers=headers, cookies=cookies)
+        r = requests.get(baseurl + backup_id, headers=headers, cookies=cookies)
         if r.status_code == 400:
-            log_output("Session expired. Please login again", True, r.status_code)
+            message = "Session expired. Please login again"
+            log_output(message, True, r.status_code)
             sys.exit(2)
         if r.status_code != 200:
-            log_output("Error getting backup " + backup_id, True, r.status_code)
+            message = "Error getting backup " + backup_id
+            log_output(message, True, r.status_code)
             continue
         data = r.json()["data"]
 
-        if active_id is not None and data.get("Backup", {}).get("ID", 0) == active_id:
+        item_id = data.get("Backup", {}).get("ID", 0)
+        if active_id is not None and item_id == active_id:
             data["Progress"] = progress_state
         resource_list.append(data)
 
@@ -245,79 +290,84 @@ def fetch_backups(data, resource, backup_ids, method):
 
     # Only get uses a filter
     if method == "get":
-        resource_list = get_filter(resource_list, resource)
+        resource_list = backup_filter(resource_list, resource)
 
     return resource_list
 
-# Filter logic for the get function to facilitate readable output
-def get_filter(json_input, resource):
+
+# Filter logic for the fetch backup/backups methods
+def backup_filter(json_input, resource):
     resource_list = []
-    if resource == "backup":
-        for key in json_input:
-            backup = key["Backup"]
-            backup.pop("DBPath", None)
-            backup.pop("IsTemporary", None)
-            backup.pop("Metadata", None)
-            backup.pop("Filters", None)
-            backup.pop("TargetURL", None)
-            backup.pop("Tags", None)
-            backup.pop("Sources", None)
-            backup.pop("Settings", None)
+    for key in json_input:
+        backup = key["Backup"]
+        backup.pop("DBPath", None)
+        backup.pop("IsTemporary", None)
+        backup.pop("Metadata", None)
+        backup.pop("Filters", None)
+        backup.pop("TargetURL", None)
+        backup.pop("Tags", None)
+        backup.pop("Sources", None)
+        backup.pop("Settings", None)
 
-            schedule = key.get("Schedule", None)
-            if schedule is not None:
-                next_run = format_time(schedule.pop("Time", ""))
-                if next_run is not None:
-                    schedule["Next run"] = next_run
-                last_run = format_time(schedule.pop("LastRun", ""))
-                if last_run is not None:
-                    schedule["Last run"] = last_run
-                schedule.pop("AllowedDays", None)
-                schedule.pop("ID", None)
-                schedule.pop("Rule", None)
-                schedule.pop("Tags", None)
+        schedule = key.get("Schedule", None)
+        if schedule is not None:
+            next_run = format_time(schedule.pop("Time", ""))
+            if next_run is not None:
+                schedule["Next run"] = next_run
+            last_run = format_time(schedule.pop("LastRun", ""))
+            if last_run is not None:
+                schedule["Last run"] = last_run
+            schedule.pop("AllowedDays", None)
+            schedule.pop("ID", None)
+            schedule.pop("Rule", None)
+            schedule.pop("Tags", None)
 
-            progress_state = key.get("Progress", {})
-            progress = {
-                "State": progress_state.get("Phase", None),
-                "Counting": progress_state.get("StillCounting", False),
-                "Backend": {
-                    "BackendAction": progress_state.get("BackendAction", 0),
-                },
-                "Task ID": progress_state.get("TaskID", -1)
-            }
-            # Display item only if relevant
-            if not progress_state.get("StillCounting", False):
-                progress.pop("Counting")
-            # Avoid 0 division
-            if progress_state.get("ProcessedFileCount", 0) > 0 and progress_state.get("TotalFileCount", 0) > 0:
-                progress["Backend"]["Processed files"] = str(progress_state.get("ProcessedFileCount", 1) / progress_state.get("TotalFileCount", 1) * 100) + "%"
-            # Avoid 0 division
-            if progress_state.get("BackendFileProgress", 0) > 0 and progress_state.get("BackendFileSize", 0) > 0:
-                progress["Backend"]["BackendProgress"] = str(progress_state["BackendFileProgress"] / progress_state["BackendFileSize"] * 100) + "%",
-            # Don't show the backend stats on finished tasks
-            if progress_state.get("Phase", "") == "Backup_Complete":
-                progress.pop("Backend")
+        progress_state = key.get("Progress", {})
+        progress = {
+            "State": progress_state.get("Phase", None),
+            "Counting": progress_state.get("StillCounting", False),
+            "Backend": {
+                "BackendAction": progress_state.get("BackendAction", 0),
+            },
+            "Task ID": progress_state.get("TaskID", -1)
+        }
+        # Display item only if relevant
+        if not progress_state.get("StillCounting", False):
+            progress.pop("Counting")
+        # Avoid 0 division
+        file_count = progress_state.get("ProcessedFileCount", 0)
+        total_file_count = progress_state.get("TotalFileCount", 0)
+        if file_count > 0 and total_file_count > 0:
+            processed = str(file_count / total_file_count * 100) + "%"
+            progress["Backend"]["Processed files"] = processed
+        # Avoid 0 division
+        file_progress = progress_state.get("BackendFileProgress", 0)
+        file_size = progress_state.get("BackendFileSize", 0)
+        if file_progress > 0 and file_size > 0:
+            backend_progress = str(file_progress / file_size * 100) + "%",
+            progress["Backend"]["BackendProgress"] = backend_progress
+        # Don't show the backend stats on finished tasks
+        if progress_state.get("Phase", "") == "Backup_Complete":
+            progress.pop("Backend")
 
-            key["Backup"] = backup
-            key["Schedule"] = schedule
-            key["Progress"] = progress
-            key.pop("DisplayNames", None)
-            resource_list.append(key)
+        key["Backup"] = backup
+        key["Schedule"] = schedule
+        key["Progress"] = progress
+        key.pop("DisplayNames", None)
+        resource_list.append(key)
 
     return resource_list
+
 
 # Call the API to schedule a backup run next
 def run_backup(data, backup_id):
-    if data.get("token", None) is None:
-        log_output("Not logged in", True)
-        sys.exit(2)
+    verify_token(data)
 
-    baseurl = create_baseurl(data, "/api/v1/")
+    baseurl = create_baseurl(data, "/api/v1/backup/" + str(backup_id) + "/run")
     cookies = create_cookies(data)
     headers = create_headers(data)
-    # Check progress state and get info for the running backup if any is running
-    r = requests.post(baseurl + "backup/" + str(backup_id) + "/run", headers=headers, cookies=cookies)
+    # Check progress state and get info for the running backup
+    r = requests.post(baseurl, headers=headers, cookies=cookies)
     if r.status_code == 400:
         log_output("Session expired. Please login again", True, r.status_code)
         sys.exit(2)
@@ -326,17 +376,16 @@ def run_backup(data, backup_id):
         return
     log_output("Backup scheduled", True)
 
+
 # Call the API to abort a task
 def abort_task(data, task_id):
-    if data.get("token", None) is None:
-        log_output("Not logged in", True)
-        sys.exit(2)
+    verify_token(data)
 
-    baseurl = create_baseurl(data, "/api/v1/")
+    baseurl = create_baseurl(data, "/api/v1/task/" + str(task_id) + "/abort")
     cookies = create_cookies(data)
     headers = create_headers(data)
-    # Check progress state and get info for the running backup if any is running
-    r = requests.post(baseurl + "task/" + str(task_id) + "/abort", headers=headers, cookies=cookies)
+    # Check progress state and get info for the running backup
+    r = requests.post(baseurl, headers=headers, cookies=cookies)
     if r.status_code == 400:
         log_output("Session expired. Please login again", True, r.status_code)
         sys.exit(2)
@@ -344,6 +393,7 @@ def abort_task(data, task_id):
         log_output("Error aborting task ", True, r.status_code)
         return
     log_output("Task aborted", True)
+
 
 # Login by authenticating against the Duplicati API and extracting a token
 def login(data, input_url=None, password=None):
@@ -383,8 +433,9 @@ def login(data, input_url=None, password=None):
             password = getpass.getpass('Password:')
 
         log_output("Getting nonce and salt...", False)
-        payload = { 'get-nonce': 1 }
-        r = requests.post(baseurl + "/login.cgi", data=payload)
+        baseurl = create_baseurl(data, "/login.cgi")
+        payload = {'get-nonce': 1}
+        r = requests.post(baseurl, data=payload)
         if r.status_code != 200:
             log_output("Error getting salt from server", True, r.status_code)
             return
@@ -393,20 +444,29 @@ def login(data, input_url=None, password=None):
         data["nonce"] = unquote(r.json()["Nonce"])
         token = unquote(r.cookies["xsrf-token"])
         log_output("Hashing password...", False)
-        saltedpwd = hashlib.sha256(password.encode() + base64.b64decode(salt)).digest()
-        noncedpwd = hashlib.sha256(base64.b64decode(data["nonce"]) + saltedpwd).digest()
+        salt_password = password.encode() + base64.b64decode(salt)
+        saltedpwd = hashlib.sha256(salt_password).digest()
+        nonce_password = base64.b64decode(data["nonce"]) + saltedpwd
+        noncedpwd = hashlib.sha256(nonce_password).digest()
 
         log_output("Authenticating... ", False)
-        payload = { "password": base64.b64encode(noncedpwd).decode('utf-8') }
-        cookies = { "xsrf-token": token, "session-nonce": data.get("nonce", "") }
-        r = requests.post(baseurl + "/login.cgi", data=payload, cookies=cookies)
+        payload = {
+            "password": base64.b64encode(noncedpwd).decode('utf-8')
+        }
+        cookies = {
+            "xsrf-token": token,
+            "session-nonce": data.get("nonce", "")
+        }
+        r = requests.post(baseurl, data=payload, cookies=cookies)
         if r.status_code == 200:
             log_output("Connected", True, r.status_code)
             data["session-auth"] = unquote(r.cookies["session-auth"])
         else:
-            log_output("Error authenticating against the server", True, r.status_code)
+            message = "Error authenticating against the server"
+            log_output(message, True, r.status_code)
     else:
-        log_output("Error connecting to server", True, r.status_code)
+        message = "Error connecting to server"
+        log_output(message, True, r.status_code)
         return
 
     # Update the config file with provided values
@@ -415,6 +475,7 @@ def login(data, input_url=None, password=None):
     write_config(data)
     return
 
+
 # Logout by deleting the token from memory and disk
 def logout(data):
     log_output("Logging out...", True)
@@ -422,9 +483,41 @@ def logout(data):
     write_config(data)
     return data
 
+
+# Helper method for verifying the token
+def verify_token(data):
+    token = data.get("token", None)
+    expires = data.get("token_expires", None)
+    if token is None or expires is None:
+        log_output("Not logged in", True)
+        sys.exit(2)
+
+    # Get time
+    now = datetime.datetime.now()
+
+    # Take care of timezones
+    now = now.replace(tzinfo=tz.tzutc())
+    now = now.astimezone(tz.tzlocal())
+    expires = expires.replace(tzinfo=tz.tzutc())
+    expires = expires.astimezone(tz.tzlocal())
+
+    # Get the delta
+    delta = (now - expires)
+    # Check if token has expired
+    if delta.seconds > 600:
+        log_output("Token expired", True)
+        sys.exit(2)
+
+
 # Logging function
 def log_output(text, important, code=None):
     global verbose
+    global data
+
+    # Refresh token duration
+    if code == 200:
+        data["token_expires"] = datetime.datetime.now()
+
     if verbose is False and important is False:
         return
     if code is None:
@@ -433,17 +526,30 @@ def log_output(text, important, code=None):
 
     print(text + ", code: " + str(code))
 
+
 # Common function for creating cookies to authenticate against the API
 def create_cookies(data):
-    # return { "xsrf-token": data.get("token", "") }
+    token = data.get("token", "")
     if data.get("nonce", None) is None:
-        return { "xsrf-token": data.get("token", "") }
+        return {
+            "xsrf-token": token
+        }
     else:
-        return { "xsrf-token": data.get("token", ""), "session-nonce": data.get("nonce", ""), "session-auth": data.get("session-auth", "") }
+        nonce = data.get("nonce", "")
+        session_auth = data.get("session-auth", "")
+        return {
+            "xsrf-token": token,
+            "session-nonce": nonce,
+            "session-auth": session_auth
+        }
+
 
 # Common function for creating headers to authenticate against the API
 def create_headers(data):
-    return { "X-XSRF-TOKEN": data.get("token", "") }
+    return {
+        "X-XSRF-TOKEN": data.get("token", "")
+    }
+
 
 # Common function for creating a base url
 def create_baseurl(data, additional_path, append_token=False):
@@ -456,7 +562,8 @@ def create_baseurl(data, additional_path, append_token=False):
 
     return baseurl
 
-# Load the configration from disk - Falls back to creating a default config if none exists
+
+# Load the configration from disk
 def load_config(data):
     global config_file
     # If the config file doesn't exist, create it
@@ -470,6 +577,7 @@ def load_config(data):
             return data
         except yaml.YAMLError as exc:
             log_output(exc, True)
+
 
 def format_time(timestring):
     # Filter out "unset" time
@@ -487,8 +595,10 @@ def format_time(timestring):
     now = datetime.datetime.now()
 
     # Take care of timezones
-    now = now.replace(tzinfo=tz.tzutc()).astimezone(tz.tzlocal())
-    datetime_object = datetime_object.replace(tzinfo=tz.tzutc()).astimezone(tz.tzlocal())
+    now = now.replace(tzinfo=tz.tzutc())
+    now = now.astimezone(tz.tzlocal())
+    datetime_object = datetime_object.replace(tzinfo=tz.tzutc())
+    datetime_object = datetime_object.astimezone(tz.tzlocal())
 
     # Get the delta
     delta = (now - datetime_object)
@@ -502,6 +612,7 @@ def format_time(timestring):
     else:
         return datetime_object.strftime("%I:%M %p")
 
+
 # Print the status to stdout
 def display_status(data):
     if data.get("token", None) is not None:
@@ -510,15 +621,23 @@ def display_status(data):
         log_output("Not logged in", True)
         sys.exit(2)
     if data.get("last_login", None) is not None:
-        log_output("Last login: " + str(data["last_login"]), True)
+        last_login = data.get("last_login", "")
+        message = "Last login: " + str(last_login)
+        log_output(message, True)
     if data.get("parameters_file", None) is not None:
-        log_output("Parameters file: " + data["parameters_file"], True)
+        param_file = data.get("parameters_file", "")
+        message = "Parameters file: " + param_file
+        log_output(message, True)
+
 
 # Toggle verbosity
 def toggle_verbose(data):
     data["verbose"] = not data.get("verbose", False)
     write_config(data)
-    log_output("verbose mode: " + str(data["verbose"]), True)
+    verbose = data.get("verbose", True)
+    message = "verbose mode: " + str(verbose)
+    log_output(message, True)
+
 
 # Set parameters file
 def set_parameters_file(data, args, file=None):
@@ -537,6 +656,7 @@ def set_parameters_file(data, args, file=None):
     log_output("Setting parameters-file", True)
     return data
 
+
 # Load parameters from file
 def load_parameters(data, args):
     # Check for parameters file
@@ -552,14 +672,16 @@ def load_parameters(data, args):
     with open(file, 'r') as file_handle:
         try:
             parameters_file = yaml.safe_load(file_handle)
-            log_output("Loaded " + str(len(parameters_file)) + " parameters from file", True)
-            # any arg can be inserted, so currently I see no point in validating what goes in.
+            parameters = len(parameters_file)
+            message = "Loaded " + str(parameters) + " parameters from file"
+            log_output(message, True)
+
             for key, value in parameters_file.items():
-                # Just make sure not to override CLI provided arguments
+                # Make sure not to override CLI provided arguments
                 if args.get(key, None) is None:
                     args[key] = value
 
-            # Have to manually handle this special case because verbose is a command not an argument
+            # Verbose is special because verbose is a command not an argument
             if parameters_file.get("verbose", None) is not None:
                 data["verbose"] = parameters_file.get("verbose")
 
@@ -571,19 +693,21 @@ def load_parameters(data, args):
             log_output(exc, True)
             return args
 
+
 # Import resource wrapper function
-def import_resource(data, resource, import_file, backup_id=None, import_metadata=False):
+def import_resource(data, resource, import_file, backup_id, import_meta):
     if resource == "backup":
-        import_backup(data, import_file, backup_id, import_metadata)
+        import_backup(data, import_file, backup_id, import_meta)
+
 
 # Import backup configuration from a YAML or JSON file
-def import_backup(data, import_file, backup_id=None, import_metadata=False):
+def import_backup(data, import_file, backup_id=None, import_meta=False):
     # Determine if we're importing a new backup or updating an existing backup
     if backup_id is None:
         baseurl = create_baseurl(data, "/api/v1/backups/import", True)
     else:
         baseurl = create_baseurl(data, "/api/v1/backup/")
-    
+
     # Don't load nonexisting files
     if os.path.isfile(import_file) is False:
         log_output(import_file + " not found", True)
@@ -598,7 +722,7 @@ def import_backup(data, import_file, backup_id=None, import_metadata=False):
             except yaml.YAMLError:
                 log_output("Failed to load file as YAML", True)
                 return
-        
+
         elif extension.lower() == ".json":
             try:
                 backup_config = json.load(file_handle)
@@ -609,28 +733,37 @@ def import_backup(data, import_file, backup_id=None, import_metadata=False):
     # Prepare the imported JSON object as a string
     backup_config = json.dumps(backup_config, default=str)
 
-    # Requests rocks. Let's you "file upload" text without referencing an actual file
-    files = {'config': ('backup_config.json', backup_config, 'application/json') }
-    # Will eventually support passphrase encrypted configs,
-    # but we would need to decrypt them in the client in order to convert them
-    payload = {'passphrase': '', 'import_metadata': import_metadata, 'direct': True }
+    # Upload our JSON string as a file with requests
+    files = {
+        'config': ('backup_config.json', backup_config, 'application/json')
+    }
+
+    # Will eventually support passphrase encrypted configs, but we will
+    # need to decrypt them in the client in order to convert them
+    payload = {
+        'passphrase': '',
+        'import_metadata': import_meta,
+        'direct': True
+    }
     cookies = create_cookies(data)
     r = requests.post(baseurl, files=files, cookies=cookies, data=payload)
     if r.status_code == 400:
         log_output("Session expired. Please login again", True, r.status_code)
         sys.exit(2)
     elif r.status_code != 200:
-        log_output("Error importing backup configuration ", True, r.status_code)
+        log_output("Error importing backup configuration", True, r.status_code)
         sys.exit(2)
     log_output("Backup job created", True)
 
+
 # Export resource wrapper function
-def export_resource(data, resource, resource_id, output=None, output_path=None):
+def export_resource(data, resource, resource_id, output=None, path=None):
     if resource == "backup":
-        export_backup(data, resource_id, output, output_path)
+        export_backup(data, resource_id, output, path)
+
 
 # Export backup configuration to either YAML or JSON file
-def export_backup(data, backup_id, output=None, output_path=None):
+def export_backup(data, backup_id, output=None, path=None):
     # Get backup config
     result = fetch_backups(data, "backup", [backup_id], "describe")
     if result is None or len(result) == 0:
@@ -655,50 +788,55 @@ def export_backup(data, backup_id, output=None, output_path=None):
         filetype = ".json"
     else:
         filetype = ".yml"
-    
+
     # Decide on where to output file
-    if output_path is None:
-        output_path = "backup_config_" + str(datetime.datetime.now().strftime("%d.%m.%Y_%I:%M_%p")) + filetype
+    if path is None:
+        time = datetime.datetime.now().strftime("%d.%m.%Y_%I:%M_%p")
+        path = "backup_config_" + str(time) + filetype
     else:
-        output_path = expanduser(output_path)
+        path = expanduser(path)
 
     # Check if output folder exists
-    directory = os.path.dirname(output_path)
+    directory = os.path.dirname(path)
     if directory != '' and not os.path.exists(directory):
-        log_output("Created directory \"" + directory + "\"", True)
+        message = "Created directory \"" + directory + "\""
+        log_output(message, True)
         os.makedirs(directory)
     # Check if output file exists
-    if os.path.isfile(output_path) is True:
+    if os.path.isfile(path) is True:
         agree = input('File already exists, overwrite? [Y/n]:')
         if agree not in ["Y", "y", "yes", "YES", ""]:
             return
-    with open(output_path, 'w') as file:
+    with open(path, 'w') as file:
         if filetype == ".json":
             file.write(json.dumps(backup, indent=4, default=str))
         else:
             file.write(yaml.dump(backup, default_flow_style=False))
-    log_output("Created " + output_path, True)
+    log_output("Created " + path, True)
+
 
 # Print the config to stdout
 def display_config(data):
     log_output(yaml.dump(data, default_flow_style=False), True)
+
 
 # Write config to file
 def write_config(data):
     global config_file
     directory = os.path.dirname(config_file)
     if not os.path.exists(directory):
-        log_output("Created directory \"" + directory + "\"", True)
+        message = "Created directory \"" + directory + "\""
+        log_output(message, True)
         os.makedirs(directory)
     with open(config_file, 'w') as file:
         file.write(yaml.dump(data, default_flow_style=False))
+
 
 # Client intro
 def info():
     return """Duplicati Client
 
-This client connects to Duplicati servers remotely or locally and helps manage them easily through the commandline.
-A client daemon and cron mode is also available, allowing to periodically pull instructions from a central management server.
+Connect to Duplicati remotely or locally and manage them through the CLI.
 
 To begin log into a server:
     duplicati login https://my.duplicati.server
@@ -706,12 +844,14 @@ To begin log into a server:
 or see --help to see information on usage
 """
 
+
 # Python 3 vs 2 urllib compatibility issues
 def unquote(text):
     if sys.version_info[0] >= 3:
         return urllib.parse.unquote(text)
     else:
         return urllib.unquote(text)
+
 
 # More urllib compatibility issues
 def quote(text):
@@ -727,67 +867,147 @@ if __name__ == '__main__':
         sys.exit(2)
     # Initialize argument parser and standard optional arguments
     parser = ap.ArgumentParser()
-    
+
     # Create subparsers
     subparsers = parser.add_subparsers(title='commands', metavar="<>", help="")
+
     # Subparser for the List method
-    list_parser = subparsers.add_parser('list', help="List all resources of a given type")
-    list_parser.add_argument('type', choices=["backups", "restores", "notifications", "serversettings", "systeminfo"], help="the type of resource")
+    message = "List all resources of a given type"
+    list_parser = subparsers.add_parser('list', help=message)
+    choices = [
+        "backups",
+        "restores",
+        "notifications",
+        "serversettings",
+        "systeminfo"
+    ]
+    message = "the type of resource"
+    list_parser.add_argument('type', choices=choices, help=message)
+
     # Subparser for the Get method
-    get_parser = subparsers.add_parser('get', help="display breif information on one or many resources")
-    get_parser.add_argument('type', choices=["backup"], help="the type of resource")
-    get_parser.add_argument('id', nargs='+', help="one or more ID's to look up")
+    message = "display breif information on one or many resources"
+    get_parser = subparsers.add_parser('get', help=message)
+    message = "the type of resource"
+    choices = ["backup"]
+    get_parser.add_argument('type', choices=choices, help=message)
+    message = "one or more ID's to look up"
+    get_parser.add_argument('id', nargs='+', help=message)
+
     # Subparser for the Describe method
-    describe_parser = subparsers.add_parser('describe', help="display detailed information on a specific resource")
-    describe_parser.add_argument('type', choices=["backup"], help="the type of resource")
-    describe_parser.add_argument('id', help="the ID of the resource to look up")
+    message = "display detailed information on a specific resource"
+    describe_parser = subparsers.add_parser('describe', help=message)
+    message = "the type of resource"
+    describe_parser.add_argument('type', choices=["backup"], help=message)
+    message = "the ID of the resource to look up"
+    describe_parser.add_argument('id', help=message)
+
     # Subparser for the Run method
-    run_parser = subparsers.add_parser('run', help="run a backup job")
-    run_parser.add_argument('id', help="the ID of the backup job to run")
+    message = "run a backup job"
+    run_parser = subparsers.add_parser('run', help=message)
+    message = "the ID of the backup job to run"
+    run_parser.add_argument('id', help=message)
+
     # Subparser for the Abort method
-    abort_parser = subparsers.add_parser('abort', help="abort a task")
-    abort_parser.add_argument('id', help="the ID of the task to abort")
+    message = "abort a task"
+    abort_parser = subparsers.add_parser('abort', help=message)
+    message = "the ID of the task to abort"
+    abort_parser.add_argument('id', help=message)
+
     # Subparser for the Edit method
-    edit_parser = subparsers.add_parser('edit', help="edit a resource on the server")
-    edit_parser.add_argument('type', help="the type of resource")
-    edit_parser.add_argument('id', help="the ID of the resource to edit")
+    message = "edit a resource on the server"
+    edit_parser = subparsers.add_parser('edit', help=message)
+    message = "the type of resource"
+    edit_parser.add_argument('type', help=message)
+    message = "the ID of the resource to edit"
+    edit_parser.add_argument('id', help=message)
+
     # Subparser for the Export method
-    export_parser = subparsers.add_parser('export', help="export a resource from the server to YAMl or JSON format")
-    export_parser.add_argument('type', choices=["backup"], help="the type of resource")
-    export_parser.add_argument('id', help="the ID of the resource to export")
-    export_parser.add_argument('--output', choices=["YAML", "JSON", "yaml", "json"], metavar='', help="output YAML or JSON, defaults to YAML")
-    export_parser.add_argument('--output-path', metavar='', help="Path to output the file at")
+    message = "export a resource from the server to YAMl or JSON format"
+    export_parser = subparsers.add_parser('export', help=message)
+    choices = ["backup"]
+    message = "the type of resource"
+    export_parser.add_argument('type', choices=choices, help=message)
+    message = "the ID of the resource to export"
+    export_parser.add_argument('id', help=message)
+    choices = [
+        "YAML",
+        "JSON",
+        "yaml",
+        "json"
+    ]
+    message = "output YAML or JSON, defaults to YAML"
+    export_parser.add_argument('--output', help=message,
+                               choices=choices, metavar='')
+    message = "Path to output the file at"
+    export_parser.add_argument('--output-path', metavar='', help=message)
+
     # Subparser for the Import method
-    import_parser = subparsers.add_parser('import', help="import a resource to the server from a YAMl or JSON file")
-    import_parser.add_argument('type', choices=["backup"], help="the type of resource")
-    import_parser.add_argument('import-file', nargs='?', help="file containing a job configuration in YAML or JSON format")
-    #import_parser.add_argument('--id', metavar='', help="Provide an ID to update an existing backup configuration")
-    import_parser.add_argument('--import-metadata', action='store_true', help="Import the metadata as well as the configuration")
+    message = "import a resource to the server from a YAMl or JSON file"
+    import_parser = subparsers.add_parser('import', help=message)
+    message = "the type of resource"
+    import_parser.add_argument('type', choices=["backup"], help=message)
+    message = "file containing a job configuration in YAML or JSON format"
+    import_parser.add_argument('import-file', nargs='?', help=message)
+    "Import the metadata as well as the configuration"
+    import_parser.add_argument('--import-metadata', help=message,
+                               action='store_true')
+
     # Subparser for the Logs method
-    logs_parser = subparsers.add_parser('logs', help="display the logs for a given job")
-    logs_parser.add_argument('type', choices=["backup", "restore", "general", "live"],help="the type of resource")
-    logs_parser.add_argument('id', nargs='?', help="If applicable")
+    message = "display the logs for a given job"
+    logs_parser = subparsers.add_parser('logs', help=message)
+    choices = [
+        "backup",
+        "restore",
+        "general",
+        "live"
+    ]
+    message = "the type of resource"
+    logs_parser.add_argument('type', choices=choices, help=message)
+    message = "If applicable"
+    logs_parser.add_argument('id', nargs='?', help=message)
+
     # Subparser for the Login method
-    login_parser = subparsers.add_parser('login', help="log into a Duplicati server")
+    message = "log into a Duplicati server"
+    login_parser = subparsers.add_parser('login', help=message)
     login_parser.add_argument('url')
-    login_parser.add_argument('--password', metavar='', help="password, will prompt if not provided")
-    login_parser.add_argument('--insecure', action='store_true', help="allow insecure HTTPS connections to the server")
-    login_parser.add_argument('--certfile', metavar='', help="specify the path to a cert file used to validate the certificate authority")
-    login_parser.add_argument('--config-file', action='store', help="specify a non-standard configuration file", metavar='')
+    message = "password, will prompt if not provided"
+    login_parser.add_argument('--password', metavar='', help=message)
+    message = "allow insecure HTTPS connections to the server"
+    login_parser.add_argument('--insecure', action='store_true', help=message)
+    message = "specify the path to certificate to be used for validation"
+    login_parser.add_argument('--certfile', metavar='', help=message)
+    message = "specify a non-standard configuration file"
+    login_parser.add_argument('--config-file', help=message,
+                              metavar='', action='store')
+
     # Subparser for the Logout method
-    subparsers.add_parser('logout', help="end the current server session")
+    message = "end the current server session"
+    subparsers.add_parser('logout', help=message)
+
     # Subparser for the Status method
-    subparsers.add_parser('status', help="return information about the current session")
+    message = "return information about the current session"
+    subparsers.add_parser('status', help=message)
+
     # Subparser for the Config method
-    subparsers.add_parser('config', help="prints the config to stdout")
+    message = "prints the config to stdout"
+    subparsers.add_parser('config', help=message)
+
     # Subparser for the Daemon mode
-    subparsers.add_parser('daemon', help="run Duplicati Client as a service")
+    message = "run Duplicati Client as a service"
+    subparsers.add_parser('daemon', help=message)
+
     # Subparser for toggling verbose mode
-    subparsers.add_parser('verbose', help="Toggle verbose mode")
+    message = "toggle verbose mode"
+    subparsers.add_parser('verbose', help=message)
+
     # Subparser for setting a parameter file
-    parameters_file_parser = subparsers.add_parser('params', help="import parameters from a YAML file")
-    parameters_file_parser.add_argument('param-file', nargs='?', help="path to file containing parameters in YAML format")
-    parameters_file_parser.add_argument('--disable', action='store_true', help="disable the parameters file")
+    message = "import parameters from a YAML file"
+    params_parser = subparsers.add_parser('params', help=message)
+    message = "path to file containing parameters in YAML format"
+    params_parser.add_argument('param-file', nargs='?', help=message)
+    message = "disable the parameters file"
+    params_parser.add_argument('--disable', help=message, action='store_true')
+
     # Construct parsers and initialize the main method
     args = parser.parse_args()
     main(**vars(args))
