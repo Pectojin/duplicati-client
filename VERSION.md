@@ -1,5 +1,8 @@
 # Duplicati client
-Version 0.1.0 alpha
+Version 0.1.1 alpha
+
+## 0.1.1 alpha (7984e98)
+Fixed an issue with the file name of exported backup configurations beign invalid on windows
 
 ## 0.1.0 alpha (fec0cb7)
 Major overhaul of code style to improve readability and adhere to PEP8 style guide.
@@ -22,7 +25,6 @@ Login to password protected servers
 Add parameters file to persist settings throughout session
 
 Drafted first version of the Daemon API server specification
-
 
 ## 0.0.1 notes (5548ef3)
 List backups, notifications, serversettings, and systeminfo
