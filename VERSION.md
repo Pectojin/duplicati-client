@@ -1,5 +1,8 @@
 # Duplicati client
-Version 0.0.3 alpha
+Version 0.0.4 alpha
+
+## 0.0.4 notes (b485e99)
+Fixed an issue with the get command not printing the resource after fetching it from the server
 
 ## 0.0.3 notes (0321670)
 Import and export config files to create new backups
