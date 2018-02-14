@@ -97,6 +97,23 @@ If you need to disable your parameters file, run
 
     duc params --disable
 
+# Export backups
+The export command enables building backup configuration files through the CLI. The Duplicati client will pull the necessary information on the selected backup and construct a configuration file. The configuration file can be exported in either YAML or JSON depending on preference
+
+    duc export backup [id]
+
+By default the client will export YAML, but you can manually specify either with `--output`. Additionally you can specify the output path with `--output-path`.
+
+The resulting file can then be used to create new backup jobs with the import command. Notice that the JSON output is identical to exporting from the Duplicati Web UI, so if you need interoperability use JSON. The YAML file is only understood by this client for now.
+
+# Import backups
+The import command enables creating new backup configurations from a configuration file. Use either a JSON file exported from the Duplicati Web UI or a YAML/JSOn file exported from this client. Input files are automatically converted into the JSOn format that the Duplicati server requires, so it does not matter which format you import from.
+
+    duc import backup [path_to_file]
+
+By default metadata will not be imported, but if you'd like to retain the metadata use `--import-metadata`
+
+Encrypted configuration files are currently not supported.
 
 # Daemon mode
 The Duplicati Client will eventually support daemon mode. The daemon mode will run in a continous loop and fetch a list of tasks to execute from it's "task list" server. On startup a task server must be provided.
