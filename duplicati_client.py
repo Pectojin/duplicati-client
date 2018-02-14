@@ -140,7 +140,8 @@ def list_resources(data, resource):
         sys.exit(2)
 
     # Must use safe_dump for python 2 compatibility
-    log_output(yaml.safe_dump(resource_list, default_flow_style=False), True)
+    message = yaml.safe_dump(resource_list, default_flow_style=False)
+    log_output(message, True, 200)
 
 
 def fetch_resource_list(data, resource):
@@ -221,10 +222,12 @@ def list_filter(json_input, resource):
 def get_resources(data, resource_type, resource_id):
     if resource_type == "backup":
         backups = fetch_backups(data, resource_type, resource_id, "get")
-        log_output(yaml.safe_dump(backups, default_flow_style=False), True)
+        message = yaml.safe_dump(backups, default_flow_style=False)
+        log_output(message, True, 200)
     elif resource_type == "notification":
         result = fetch_notifications(data, resource_id, "get")
-        log_output(yaml.safe_dump(result, default_flow_style=False), True)
+        message = yaml.safe_dump(result, default_flow_style=False)
+        log_output(message, True, 200)
 
 
 # Fetch notifications
@@ -245,7 +248,8 @@ def notification_filter(json_input):
 def describe_resource(data, resource, backup_id):
     result = fetch_backups(data, resource, [backup_id], "describe")
     # Must use safe_dump for python 2 compatibility
-    log_output(yaml.safe_dump(result, default_flow_style=False), True)
+    message = yaml.safe_dump(result, default_flow_style=False)
+    log_output(message, True, 200)
 
 
 # Fetch backups
@@ -374,7 +378,7 @@ def run_backup(data, backup_id):
     elif r.status_code != 200:
         log_output("Error scheduling backup ", True, r.status_code)
         return
-    log_output("Backup scheduled", True)
+    log_output("Backup scheduled", True, 200)
 
 
 # Call the API to abort a task
@@ -392,7 +396,7 @@ def abort_task(data, task_id):
     elif r.status_code != 200:
         log_output("Error aborting task ", True, r.status_code)
         return
-    log_output("Task aborted", True)
+    log_output("Task aborted", True, 200)
 
 
 # Login by authenticating against the Duplicati API and extracting a token
@@ -517,14 +521,15 @@ def log_output(text, important, code=None):
     # Refresh token duration
     if code == 200:
         data["token_expires"] = datetime.datetime.now()
+        write_config(data)
 
     if verbose is False and important is False:
         return
-    if code is None:
+    if code is None or verbose is False:
         print(text)
         return
 
-    print(text + ", code: " + str(code))
+    print(text + "\ncode: " + str(code))
 
 
 # Common function for creating cookies to authenticate against the API
@@ -753,7 +758,7 @@ def import_backup(data, import_file, backup_id=None, import_meta=False):
     elif r.status_code != 200:
         log_output("Error importing backup configuration", True, r.status_code)
         sys.exit(2)
-    log_output("Backup job created", True)
+    log_output("Backup job created", True, 200)
 
 
 # Export resource wrapper function
@@ -812,7 +817,7 @@ def export_backup(data, backup_id, output=None, path=None):
             file.write(json.dumps(backup, indent=4, default=str))
         else:
             file.write(yaml.dump(backup, default_flow_style=False))
-    log_output("Created " + path, True)
+    log_output("Created " + path, True, 200)
 
 
 # Print the config to stdout
