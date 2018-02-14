@@ -370,7 +370,7 @@ def login(data, input_url=None, password=None):
 			return
 
 		salt = r.json()["Salt"]
-		data["nonce"] = r.json()["Nonce"]
+		data["nonce"] = unquote(r.json()["Nonce"])
 		token = unquote(r.cookies["xsrf-token"])
 		log_output("Hashing password...", False)
 		saltedpwd = hashlib.sha256(password.encode() + base64.b64decode(salt)).digest()
