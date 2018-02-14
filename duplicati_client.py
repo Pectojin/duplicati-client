@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
-import argparse as ap, sys, os.path
-from os.path import expanduser, splitext
-import requests
-import urllib
-import yaml, json
-import getpass
-import hashlib, base64
+import argparse as ap
+import base64
 import datetime
-from dateutil import tz, parser as dateparser
+import getpass
+import hashlib
+import json
+import os.path
+import requests
+import sys
+import urllib
+import yaml
+
+from dateutil import parser as dateparser
+from dateutil import tz
+from os.path import expanduser
+from os.path import splitext
 
 # Global values
 config_file = "config.yml"
@@ -105,9 +112,15 @@ def main(**args):
 def list_resources(data, resource):
 	if data.get("token", None) is None:
 		log_output("Not logged in", True)
-		return
+		sys.exit(2)
+
 	resource_list = fetch_resource_list(data, resource)
 	resource_list = list_filter(resource_list, resource)
+
+	if len(resource_list) == 0:
+		log_output("No items found", True)
+		sys.exit(2)
+
 	# Must use safe_dump for python 2 compatibility
 	log_output(yaml.safe_dump(resource_list, default_flow_style=False), True)
 
@@ -119,10 +132,10 @@ def fetch_resource_list(data, resource):
 	r = requests.get(baseurl + resource, headers=headers, cookies=cookies)
 	if r.status_code == 400:
 		log_output("Session expired. Please login again", True, r.status_code)
-		return
+		sys.exit(2)
 	elif r.status_code != 200:
 		log_output("Error connecting", True, r.status_code)
-		return
+		sys.exit(2)
 	else:
 		return r.json()
 
@@ -196,7 +209,7 @@ def describe_resource(data, resource, backup_id):
 def fetch_backups(data, resource, backup_ids, method):
 	if data.get("token", None) is None:
 		log_output("Not logged in", True)
-		return
+		sys.exit(2)
 
 	baseurl = create_baseurl(data, "/api/v1/")
 	log_output("Fetching backup list from API...", False)
@@ -216,14 +229,18 @@ def fetch_backups(data, resource, backup_ids, method):
 		r = requests.get(baseurl + resource + "/" + backup_id, headers=headers, cookies=cookies)
 		if r.status_code == 400:
 			log_output("Session expired. Please login again", True, r.status_code)
-			return
+			sys.exit(2)
 		if r.status_code != 200:
 			log_output("Error getting backup " + backup_id, True, r.status_code)
 			continue
 		data = r.json()["data"]
+
 		if active_id is not None and data.get("Backup", {}).get("ID", 0) == active_id:
 			data["Progress"] = progress_state
 		resource_list.append(data)
+
+	if len(resource_list) == 0:
+		sys.exit(2)
 
 	# Only get uses a filter
 	if method == "get":
@@ -293,7 +310,7 @@ def get_filter(json_input, resource):
 def run_backup(data, backup_id):
 	if data.get("token", None) is None:
 		log_output("Not logged in", True)
-		return
+		sys.exit(2)
 
 	baseurl = create_baseurl(data, "/api/v1/")
 	cookies = create_cookies(data)
@@ -302,7 +319,7 @@ def run_backup(data, backup_id):
 	r = requests.post(baseurl + "backup/" + str(backup_id) + "/run", headers=headers, cookies=cookies)
 	if r.status_code == 400:
 		log_output("Session expired. Please login again", True, r.status_code)
-		return
+		sys.exit(2)
 	elif r.status_code != 200:
 		log_output("Error scheduling backup ", True, r.status_code)
 		return
@@ -312,7 +329,7 @@ def run_backup(data, backup_id):
 def abort_task(data, task_id):
 	if data.get("token", None) is None:
 		log_output("Not logged in", True)
-		return
+		sys.exit(2)
 
 	baseurl = create_baseurl(data, "/api/v1/")
 	cookies = create_cookies(data)
@@ -321,7 +338,7 @@ def abort_task(data, task_id):
 	r = requests.post(baseurl + "task/" + str(task_id) + "/abort", headers=headers, cookies=cookies)
 	if r.status_code == 400:
 		log_output("Session expired. Please login again", True, r.status_code)
-		return
+		sys.exit(2)
 	elif r.status_code != 200:
 		log_output("Error aborting task ", True, r.status_code)
 		return
@@ -490,6 +507,7 @@ def display_status(data):
 		log_output("Logged in", True)
 	else:
 		log_output("Not logged in", True)
+		sys.exit(2)
 	if data.get("last_login", None) is not None:
 		log_output("Last login: " + str(data["last_login"]), True)
 	if data.get("parameters_file", None) is not None:
@@ -599,10 +617,10 @@ def import_backup(data, import_file, backup_id=None, import_metadata=False):
 	r = requests.post(baseurl, files=files, cookies=cookies, data=payload)
 	if r.status_code == 400:
 		log_output("Session expired. Please login again", True, r.status_code)
-		return
+		sys.exit(2)
 	elif r.status_code != 200:
 		log_output("Error importing backup configuration ", True, r.status_code)
-		return
+		sys.exit(2)
 	log_output("Backup job created", True)
 
 # Export resource wrapper function
@@ -627,7 +645,7 @@ def export_backup(data, backup_id, output=None, output_path=None):
 
 	if systeminfo.get("ServerVersion", None) is None:
 		log_output("Error exporting backup", True)
-		return
+		sys.exit(2)
 
 	backup["CreatedByVersion"] = systeminfo["ServerVersion"]
 
