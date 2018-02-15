@@ -58,7 +58,7 @@ def main(**args):
         data = set_parameters_file(data, args, param_file)
 
     # Load parameters file
-    load_parameters(data, args)
+    args = load_parameters(data, args)
 
     # Show parameters
     if method == "params" and args.get("show", False):
