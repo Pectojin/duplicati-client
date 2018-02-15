@@ -256,7 +256,7 @@ def fetch_notifications(data, notification_ids, method):
         log_output(message, True, r.status_code)
         sys.exit(2)
     if r.status_code != 200:
-        id_list = ''.join(notification_ids, ", ")
+        id_list = ', '.join(notification_ids)
         message = "Error getting notifications " + id_list
         log_output(message, True, r.status_code)
     else:
@@ -1001,7 +1001,7 @@ if __name__ == '__main__':
     import_parser.add_argument('type', choices=["backup"], help=message)
     message = "file containing a job configuration in YAML or JSON format"
     import_parser.add_argument('import-file', nargs='?', help=message)
-    "Import the metadata as well as the configuration"
+    message = "Import the metadata as well as the configuration"
     import_parser.add_argument('--import-metadata', help=message,
                                action='store_true')
 

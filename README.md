@@ -32,6 +32,9 @@ On UNIX it should automatically attempt to use Python on your system so now you 
     duc
 And you're good to go. 
 
+# Windows self contained binary
+For installation of the Windows self contained binary package I recommend copying it to `C:\Program Files\Duplicati Client` and then adding that path to your [environment variable path](https://www.computerhope.com/issues/ch000549.htm) so that you can call `duplicati_client.exe` from anywhere in your CLI.
+
 # Usage
 To begin log into a server:
 
