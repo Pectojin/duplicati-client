@@ -3,18 +3,11 @@ This client connects to Duplicati servers remotely or locally and helps manage t
 
 A client daemon and cron mode is also available, allowing to periodically pull instructions from a central management server.
 
-# Libraries used
-Currently the script relies on multiple internal and external libraries:
+# External libraries used
+Currently the script relies on multiple external libraries:
 
-    argparse
-    os.path
     requests
-    urllib
     PyYaml
-    getpass
-    hashlib
-    base64
-    datetime
     python-dateutil
 
 # Installation
