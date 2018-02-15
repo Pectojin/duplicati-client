@@ -1,5 +1,10 @@
 # Duplicati client
-Version 0.1.1 alpha
+Version 0.1.3 alpha
+
+## 0.1.3 alpha (f248a4e)
+Added a `--show` argument to the params command to allow viewing parameters without navigating the file
+
+Improved URL parsing on login to handle many more cases including omitting invalid characters and substituting missing fields with default values
 
 ## 0.1.1 alpha (7984e98)
 Fixed an issue with the file name of exported backup configurations beign invalid on windows
