@@ -6,6 +6,7 @@ import getpass
 import hashlib
 import json
 import os.path
+import re
 import requests
 import sys
 import urllib
@@ -451,21 +452,34 @@ def abort_task(data, task_id):
 def login(data, input_url=None, password=None):
     # Split protocol, url, and port if port is provided as CLI argument
     if input_url is not None:
-        # fallback values loaded from config file ("defaults")
-        protocol = data["server"]["protocol"]
-        url = data["server"]["url"]
-        port = data["server"]["port"]
         # Begin parsing the input url
-        input_url = input_url.replace("//", "")
+        input_url = input_url.replace("/", "").replace("_", "")
         count = input_url.count(":")
+        protocol = ""
+        url = ""
+        port = ""
         if count == 2:
             protocol, url, port = input_url.split(":")
         elif count == 1 and input_url.index(":") < 6:
             protocol, url = input_url.split(":")
         elif count == 1:
             url, port = input_url.split(":")
-        else:
+        elif count == 0:
             url = input_url
+        else:
+            log_output("Invalid URL", True)
+            sys.exit(2)
+
+    # Strip nondigits
+    port = ''.join(re.findall(r'\d+', port))
+
+    # Default to config file values for any missing parameters
+    if protocol is None or protocol.lower() not in ["http", "https"]:
+        protocol = data["server"]["protocol"]
+    if url is None or url == "":
+        url = data["server"]["url"]
+    if port is None or port == "":
+        port = data["server"]["port"]
 
     # Update config
     data["server"]["protocol"] = protocol
