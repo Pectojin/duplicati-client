@@ -591,7 +591,7 @@ def log_output(text, important, code=None):
         print(text)
         return
 
-    print(text + "\ncode: " + str(code))
+    print(text + "\nCode: " + str(code))
 
 
 # Common function for creating cookies to authenticate against the API
