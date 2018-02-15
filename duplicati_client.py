@@ -60,6 +60,10 @@ def main(**args):
     # Load parameters file
     load_parameters(data, args)
 
+    # Show parameters
+    if method == "params" and args.get("show", False):
+        show_parameters(data)
+
     # Toggle verbosity
     if method == "verbose":
         toggle_verbose(data)
@@ -690,14 +694,14 @@ def toggle_verbose(data):
 
 # Set parameters file
 def set_parameters_file(data, args, file=None):
-    if file is None:
-        return
-
-    # Disable parameters file if requests
+    # Disable parameters file if requested
     if args.get("disable", False):
         data.pop("parameters_file", None)
         write_config(data)
         log_output("Disabling parameters-file", True)
+        return data
+
+    if file is None:
         return data
 
     data["parameters_file"] = file
@@ -741,6 +745,22 @@ def load_parameters(data, args):
         except yaml.YAMLError as exc:
             log_output(exc, True)
             return args
+
+
+# Print parameters to stdout
+def show_parameters(data):
+    file = data.get("parameters_file", None)
+    if file is None:
+        return
+    with open(file, 'r') as file_handle:
+        try:
+            parameters_file = yaml.safe_load(file_handle)
+            output = yaml.dump(parameters_file, default_flow_style=False)
+            log_output(output, True)
+            return
+        except Exception:
+            message = "Could not load parameters file"
+            log_output(message, True)
 
 
 # Import resource wrapper function
@@ -1060,6 +1080,7 @@ if __name__ == '__main__':
     params_parser.add_argument('param-file', nargs='?', help=message)
     message = "disable the parameters file"
     params_parser.add_argument('--disable', help=message, action='store_true')
+    params_parser.add_argument('--show', help=message, action='store_true')
 
     # Construct parsers and initialize the main method
     args = parser.parse_args()
