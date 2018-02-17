@@ -1,7 +1,7 @@
 # Duplicati client
 This client connects to Duplicati servers remotely or locally and helps manage them easily through the commandline.
 
-A client daemon and cron mode is also available, allowing to periodically pull instructions from a central management server.
+A client daemon mode will be available eventually, allowing to periodically pull instructions from a central management server.
 
 # External libraries used
 Currently the script relies on multiple external libraries:
@@ -19,7 +19,7 @@ Then you're ready to "install" the application, so clone the repo
     git clone https://github.com/pectojin/duplicati_client
 The Python script should be executeable already, but for convenience you can symlink it
 
-    ln -s /location/of/git/repo/duplicati_client.py /usr/bin/duc
+    sudo ln -s /location/of/git/repo/duplicati_client.py /usr/bin/duc
 On UNIX it should automatically attempt to use Python on your system so now you can just call
 
     duc
