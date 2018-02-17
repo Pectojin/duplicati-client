@@ -352,15 +352,23 @@ def fetch_backups(data, backup_ids, method):
 def backup_filter(json_input):
     backup_list = []
     for key in json_input:
-        backup = key["Backup"]
-        backup.pop("DBPath", None)
-        backup.pop("IsTemporary", None)
-        backup.pop("Metadata", None)
-        backup.pop("Filters", None)
-        backup.pop("TargetURL", None)
-        backup.pop("Tags", None)
-        backup.pop("Sources", None)
-        backup.pop("Settings", None)
+        backup = key.pop("Backup", {})
+        metadata = backup.pop("Metadata", {})
+        backup_name = backup.pop("Name", {})
+        backup = {
+            "ID": backup.get("ID", ""),
+            "Local database": backup.get("DBPath", ""),
+        }
+        backup["Versions"] = int(metadata.get("BackupListCount", 0))
+        backup["Last run"] = {
+            "Duration": format_duration(metadata.get("LastDuration", "0")),
+            "Started": format_time(metadata.get("LastStarted", "0")),
+            "Stopped": format_time(metadata.get("LastFinished", "0")),
+        }
+        backup["Size"] = {
+            "Local": metadata.get("SourceSizeString", ""),
+            "Backend": metadata.get("TargetSizeString", "")
+        }
 
         schedule = key.get("Schedule", None)
         if schedule is not None:
@@ -403,10 +411,11 @@ def backup_filter(json_input):
         if progress_state.get("Phase", "") == "Backup_Complete":
             progress.pop("Backend")
 
-        key["Backup"] = backup
-        key["Schedule"] = schedule
-        key["Progress"] = progress
-        key.pop("DisplayNames", None)
+        backup["Schedule"] = schedule
+        backup["Progress"] = progress
+        key = {
+            backup_name: backup
+        }
         backup_list.append(key)
 
     return backup_list
@@ -646,14 +655,14 @@ def load_config(data):
             log_output(exc, True)
 
 
-def format_time(timestring):
+def format_time(time_string):
     # Filter out "unset" time
-    if timestring == "0001-01-01T00:00:00Z":
+    if time_string == "0001-01-01T00:00:00Z":
         return None
 
-    # We want to fail silently if we're not provided a parsable timestring.
+    # We want to fail silently if we're not provided a parsable time_string.
     try:
-        datetime_object = dateparser.parse(timestring)
+        datetime_object = dateparser.parse(time_string)
     except Exception as exc:
         log_output(exc, False)
         return None
@@ -678,6 +687,11 @@ def format_time(timestring):
         return "Tomorrow " + datetime_object.strftime("%I:%M %p")
     else:
         return datetime_object.strftime("%I:%M %p")
+
+
+def format_duration(duration_string):
+    duration = duration_string.split(".")[0]
+    return duration
 
 
 # Print the status to stdout
