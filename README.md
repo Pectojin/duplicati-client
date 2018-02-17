@@ -11,9 +11,9 @@ Currently the script relies on multiple external libraries:
     python-dateutil
 
 # Installation
-The client runs in either Python 3 or Python 2 but requires PyYaml, requests, and python-dateutil
+The client runs in either Python 3 or Python 2 but requires the above dependencies
 
-    pip3 install pyyaml requests python-dateutil
+    pip3 install -r requirements.txt
 Then you're ready to "install" the application, so clone the repo
 
     git clone https://github.com/pectojin/duplicati_client

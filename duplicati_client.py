@@ -943,6 +943,7 @@ def quote(text):
     else:
         return urllib.quote_plus(text)
 
+
 # argparse argument logic
 if __name__ == '__main__':
     if (len(sys.argv) == 1):
