@@ -144,7 +144,11 @@ def main(**args):
 def list_resources(data, resource):
     verify_token(data)
 
-    resource_list = fetch_resource_list(data, resource)
+    if resource == "backups":
+        resource_list = fetch_backup_list(data)
+    else:
+        resource_list = fetch_resource_list(data, resource)
+
     resource_list = list_filter(resource_list, resource)
 
     if len(resource_list) == 0:
@@ -154,6 +158,23 @@ def list_resources(data, resource):
     # Must use safe_dump for python 2 compatibility
     message = yaml.safe_dump(resource_list, default_flow_style=False)
     log_output(message, True, 200)
+
+
+# Fetch all backups
+def fetch_backup_list(data):
+    backups = fetch_resource_list(data, "backups")
+
+    # Fetch progress state
+    progress_state, active_id = fetch_progress_state(data)
+
+    backup_list = []
+    for backup in backups:
+        backup_id = backup.get("Backup", {}).get("ID", 0)
+        if active_id is not None and backup_id == active_id:
+            backup["Progress"] = progress_state
+        backup_list.append(backup)
+
+    return backup_list
 
 
 # Fetch all resources of a certain type
@@ -178,8 +199,9 @@ def list_filter(json_input, resource):
     resource_list = []
     if resource == "backups":
         for key in json_input:
-            backup = key["Backup"]
-            schedule = key["Schedule"]
+            backup = key.get("Backup", None)
+            schedule = key.get("Schedule", None)
+            progress_state = key.get("Progress", None)
             backup_name = backup.get("Name", "")
             backup = {
                 backup_name: {
@@ -199,6 +221,12 @@ def list_filter(json_input, resource):
                 last_run = format_time(schedule.get("LastRun", ""))
                 if last_run is not None:
                     backup[backup_name]["Last run"] = last_run
+
+            if progress_state is not None:
+                backup[backup_name]["Running"] = {
+                    "Task ID": progress_state.get("TaskID", None),
+                    "State": progress_state.get("Phase", None),
+                }
 
             resource_list.append(backup)
 
@@ -314,23 +342,15 @@ def fetch_backups(data, backup_ids, method):
     verify_token(data)
 
     log_output("Fetching backups from API...", False)
-    baseurl = create_baseurl(data, "/api/v1/progressstate")
+    progress_state, active_id = fetch_progress_state(data)
+    backup_list = []
+    baseurl = create_baseurl(data, "/api/v1/backup/")
     cookies = create_cookies(data)
     headers = create_headers(data)
-    backup_list = []
-    # Check progress state and get info for the running backup
-    r = requests.get(baseurl, headers=headers, cookies=cookies)
-    if r.status_code != 200:
-        log_output("Error getting progressstate ", False, r.status_code)
-        active_id = None
-    else:
-        progress_state = r.json()
-        active_id = progress_state.get("BackupID", -1)
-
-    baseurl = create_baseurl(data, "/api/v1/backup/")
     # Iterate over backup_ids and fetch their info
     for backup_id in backup_ids:
-        r = requests.get(baseurl + str(backup_id), headers=headers, cookies=cookies)
+        r = requests.get(baseurl + str(backup_id),
+                         headers=headers, cookies=cookies)
         if r.status_code == 400:
             message = "Session expired. Please login again"
             log_output(message, True, r.status_code)
@@ -354,6 +374,24 @@ def fetch_backups(data, backup_ids, method):
         backup_list = backup_filter(backup_list)
 
     return backup_list
+
+
+# Fetch backup progress state
+def fetch_progress_state(data):
+    baseurl = create_baseurl(data, "/api/v1/progressstate")
+    cookies = create_cookies(data)
+    headers = create_headers(data)
+    # Check progress state and get info for the running backup
+    r = requests.get(baseurl, headers=headers, cookies=cookies)
+    if r.status_code != 200:
+        log_output("Error getting progressstate ", False, r.status_code)
+        active_id = -1
+        progress_state = {}
+    else:
+        progress_state = r.json()
+        active_id = progress_state.get("BackupID", -1)
+
+    return progress_state, active_id
 
 
 # Filter logic for the fetch backup/backups methods
@@ -398,7 +436,7 @@ def backup_filter(json_input):
             "Backend": {
                 "BackendAction": progress_state.get("BackendAction", 0),
             },
-            "Task ID": progress_state.get("TaskID", -1)
+            "Task ID": progress_state.get("TaskID", -1),
         }
         # Display item only if relevant
         if not progress_state.get("StillCounting", False):
@@ -407,16 +445,17 @@ def backup_filter(json_input):
         file_count = progress_state.get("ProcessedFileCount", 0)
         total_file_count = progress_state.get("TotalFileCount", 0)
         if file_count > 0 and total_file_count > 0:
-            processed = str(file_count / total_file_count * 100) + "%"
-            progress["Backend"]["Processed files"] = processed
+            processed = "{0:.2f}".format(file_count / total_file_count * 100)
+            progress["Processed files"] = processed + "%"
         # Avoid 0 division
         file_progress = progress_state.get("BackendFileProgress", 0)
         file_size = progress_state.get("BackendFileSize", 0)
         if file_progress > 0 and file_size > 0:
-            backend_progress = str(file_progress / file_size * 100) + "%",
-            progress["Backend"]["BackendProgress"] = backend_progress
+            backend_progress = "{0:.2f}".format(file_progress / file_size * 100)
+            progress["Backend"]["BackendProgress"] = backend_progress + "%"
         # Don't show the backend stats on finished tasks
-        if progress_state.get("Phase", "") == "Backup_Complete":
+        phase = progress_state.get("Phase", "")
+        if phase in ["Backup_Complete", "Error"]:
             progress.pop("Backend")
 
         backup["Schedule"] = schedule
@@ -475,7 +514,7 @@ def delete_backup(data, backup_id, delete_db=False):
     # We cannot delete remote files because the captcha is graphical
     payload = {'delete-local-db': delete_db, 'delete-remote-files': False}
 
-    r = requests.delete(baseurl, headers=headers, 
+    r = requests.delete(baseurl, headers=headers,
                         cookies=cookies, params=payload)
     if r.status_code == 400:
         log_output("Session expired. Please login again", True, r.status_code)
