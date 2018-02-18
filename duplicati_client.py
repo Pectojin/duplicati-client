@@ -134,6 +134,7 @@ def main(**args):
         export_resource(data, resource_type, resource_id, output_type, path)
 
 
+# Function for display a list of resources
 def list_resources(data, resource):
     verify_token(data)
 
@@ -149,6 +150,7 @@ def list_resources(data, resource):
     log_output(message, True, 200)
 
 
+# Fetch all resources of a certain type
 def fetch_resource_list(data, resource):
     baseurl = create_baseurl(data, "/api/v1/")
     log_output("Fetching " + resource + " list from API...", False)
@@ -559,139 +561,13 @@ def logout(data):
     return data
 
 
-# Helper method for verifying the token
-def verify_token(data):
-    token = data.get("token", None)
-    expires = data.get("token_expires", None)
-    if token is None or expires is None:
-        log_output("Not logged in", True)
-        sys.exit(2)
-
-    # Get time
-    now = datetime.datetime.now()
-
-    # Take care of timezones
-    now = now.replace(tzinfo=tz.tzutc())
-    now = now.astimezone(tz.tzlocal())
-    expires = expires.replace(tzinfo=tz.tzutc())
-    expires = expires.astimezone(tz.tzlocal())
-
-    # Get the delta
-    delta = (now - expires)
-    # Check if token has expired
-    if delta.seconds > 600:
-        log_output("Token expired", True)
-        sys.exit(2)
-
-
-# Logging function
-def log_output(text, important, code=None):
-    global verbose
-    global data
-
-    # Refresh token duration
-    if code == 200:
-        data["token_expires"] = datetime.datetime.now()
-        write_config(data)
-
-    if verbose is False and important is False:
-        return
-    if code is None or verbose is False:
-        print(text)
-        return
-
-    print(text + "\nCode: " + str(code))
-
-
-# Common function for creating cookies to authenticate against the API
-def create_cookies(data):
-    token = data.get("token", "")
-    if data.get("nonce", None) is None:
-        return {
-            "xsrf-token": token
-        }
-    else:
-        nonce = data.get("nonce", "")
-        session_auth = data.get("session-auth", "")
-        return {
-            "xsrf-token": token,
-            "session-nonce": nonce,
-            "session-auth": session_auth
-        }
-
-
-# Common function for creating headers to authenticate against the API
-def create_headers(data):
-    return {
-        "X-XSRF-TOKEN": data.get("token", "")
-    }
-
-
-# Common function for creating a base url
-def create_baseurl(data, additional_path, append_token=False):
-    protocol = data["server"]["protocol"]
-    url = data["server"]["url"]
-    port = data["server"]["port"]
-    baseurl = protocol + "://" + url + ":" + port + additional_path
-    if append_token is True:
-        baseurl += "?x-xsrf-token=" + quote(data.get("token", ''))
-
-    return baseurl
-
-
-# Load the configration from disk
-def load_config(data):
-    global config_file
-    # If the config file doesn't exist, create it
-    if os.path.isfile(config_file) is False:
-        log_output("Creating config file", True)
-        write_config(data)
-    # Load the configuration from the config file
-    with open(config_file, 'r') as file:
-        try:
-            data = yaml.safe_load(file)
-            return data
-        except yaml.YAMLError as exc:
-            log_output(exc, True)
-
-
-def format_time(time_string):
-    # Filter out "unset" time
-    if time_string == "0001-01-01T00:00:00Z":
-        return None
-
-    # We want to fail silently if we're not provided a parsable time_string.
-    try:
-        datetime_object = dateparser.parse(time_string)
-    except Exception as exc:
-        log_output(exc, False)
-        return None
-
-    # Now for comparison
-    now = datetime.datetime.now()
-
-    # Take care of timezones
-    now = now.replace(tzinfo=tz.tzutc())
-    now = now.astimezone(tz.tzlocal())
-    datetime_object = datetime_object.replace(tzinfo=tz.tzutc())
-    datetime_object = datetime_object.astimezone(tz.tzlocal())
-
-    # Get the delta
-    delta = (now - datetime_object)
-    # Display hours if within 24 hours of now, else display dmy
-    if abs(delta.days) > 1:
-        return datetime_object.strftime("%d/%m/%Y")
-    elif delta.days == 1:
-        return "Yesterday " + datetime_object.strftime("%I:%M %p")
-    elif delta.days == -1:
-        return "Tomorrow " + datetime_object.strftime("%I:%M %p")
-    else:
-        return datetime_object.strftime("%I:%M %p")
-
-
-def format_duration(duration_string):
-    duration = duration_string.split(".")[0]
-    return duration
+# Toggle verbosity
+def toggle_verbose(data):
+    data["verbose"] = not data.get("verbose", False)
+    write_config(data)
+    verbose = data.get("verbose", True)
+    message = "verbose mode: " + str(verbose)
+    log_output(message, True)
 
 
 # Print the status to stdout
@@ -711,13 +587,37 @@ def display_status(data):
         log_output(message, True)
 
 
-# Toggle verbosity
-def toggle_verbose(data):
-    data["verbose"] = not data.get("verbose", False)
-    write_config(data)
-    verbose = data.get("verbose", True)
-    message = "verbose mode: " + str(verbose)
-    log_output(message, True)
+# Load the configration from disk
+def load_config(data):
+    global config_file
+    # If the config file doesn't exist, create it
+    if os.path.isfile(config_file) is False:
+        log_output("Creating config file", True)
+        write_config(data)
+    # Load the configuration from the config file
+    with open(config_file, 'r') as file:
+        try:
+            data = yaml.safe_load(file)
+            return data
+        except yaml.YAMLError as exc:
+            log_output(exc, True)
+
+
+# Write config to file
+def write_config(data):
+    global config_file
+    directory = os.path.dirname(config_file)
+    if not os.path.exists(directory):
+        message = "Created directory \"" + directory + "\""
+        log_output(message, True)
+        os.makedirs(directory)
+    with open(config_file, 'w') as file:
+        file.write(yaml.dump(data, default_flow_style=False))
+
+
+# Print the config to stdout
+def display_config(data):
+    log_output(yaml.dump(data, default_flow_style=False), True)
 
 
 # Set parameters file
@@ -912,34 +812,126 @@ def export_backup(data, backup_id, output=None, path=None):
     log_output("Created " + path, True, 200)
 
 
-# Print the config to stdout
-def display_config(data):
-    log_output(yaml.dump(data, default_flow_style=False), True)
+# Common function for verifying token validity
+def verify_token(data):
+    token = data.get("token", None)
+    expires = data.get("token_expires", None)
+    if token is None or expires is None:
+        log_output("Not logged in", True)
+        sys.exit(2)
+
+    # Get time
+    now = datetime.datetime.now()
+
+    # Take care of timezones
+    now = now.replace(tzinfo=tz.tzutc())
+    now = now.astimezone(tz.tzlocal())
+    expires = expires.replace(tzinfo=tz.tzutc())
+    expires = expires.astimezone(tz.tzlocal())
+
+    # Get the delta
+    delta = (now - expires)
+    # Check if token has expired
+    if delta.seconds > 600:
+        log_output("Token expired", True)
+        sys.exit(2)
 
 
-# Write config to file
-def write_config(data):
-    global config_file
-    directory = os.path.dirname(config_file)
-    if not os.path.exists(directory):
-        message = "Created directory \"" + directory + "\""
-        log_output(message, True)
-        os.makedirs(directory)
-    with open(config_file, 'w') as file:
-        file.write(yaml.dump(data, default_flow_style=False))
+# Common function for logging messages
+def log_output(text, important, code=None):
+    global verbose
+    global data
+
+    # Refresh token duration
+    if code == 200:
+        data["token_expires"] = datetime.datetime.now()
+        write_config(data)
+
+    # Determine whether the message should be displayed in stdout
+    if verbose is False and important is False:
+        return
+    if code is None or verbose is False:
+        print(text)
+        return
+
+    print(text + "\nCode: " + str(code))
 
 
-# Client intro
-def info():
-    return """Duplicati Client
+# Common function for creating cookies to authenticate against the API
+def create_cookies(data):
+    token = data.get("token", "")
+    if data.get("nonce", None) is None:
+        return {
+            "xsrf-token": token
+        }
+    else:
+        nonce = data.get("nonce", "")
+        session_auth = data.get("session-auth", "")
+        return {
+            "xsrf-token": token,
+            "session-nonce": nonce,
+            "session-auth": session_auth
+        }
 
-Connect to Duplicati remotely or locally and manage them through the CLI.
 
-To begin log into a server:
-    duplicati login https://my.duplicati.server
+# Common function for creating headers to authenticate against the API
+def create_headers(data):
+    return {
+        "X-XSRF-TOKEN": data.get("token", "")
+    }
 
-or see --help to see information on usage
-"""
+
+# Common function for creating a base url
+def create_baseurl(data, additional_path, append_token=False):
+    protocol = data["server"]["protocol"]
+    url = data["server"]["url"]
+    port = data["server"]["port"]
+    baseurl = protocol + "://" + url + ":" + port + additional_path
+    if append_token is True:
+        baseurl += "?x-xsrf-token=" + quote(data.get("token", ''))
+
+    return baseurl
+
+
+# Common function for formatting timestamps for humans
+def format_time(time_string):
+    # Filter out "unset" time
+    if time_string == "0001-01-01T00:00:00Z":
+        return None
+
+    # We want to fail silently if we're not provided a parsable time_string.
+    try:
+        datetime_object = dateparser.parse(time_string)
+    except Exception as exc:
+        log_output(exc, False)
+        return None
+
+    # Now for comparison
+    now = datetime.datetime.now()
+
+    # Take care of timezones
+    now = now.replace(tzinfo=tz.tzutc())
+    now = now.astimezone(tz.tzlocal())
+    datetime_object = datetime_object.replace(tzinfo=tz.tzutc())
+    datetime_object = datetime_object.astimezone(tz.tzlocal())
+
+    # Get the delta
+    delta = (now - datetime_object)
+    # Display hours if within 24 hours of now, else display dmy
+    if abs(delta.days) > 1:
+        return datetime_object.strftime("%d/%m/%Y")
+    elif delta.days == 1:
+        return "Yesterday " + datetime_object.strftime("%I:%M %p")
+    elif delta.days == -1:
+        return "Tomorrow " + datetime_object.strftime("%I:%M %p")
+    else:
+        return datetime_object.strftime("%I:%M %p")
+
+
+# Common function for formatting time deltas for humans
+def format_duration(duration_string):
+    duration = duration_string.split(".")[0]
+    return duration
 
 
 # Python 3 vs 2 urllib compatibility issues
@@ -956,6 +948,19 @@ def quote(text):
         return urllib.parse.quote_plus(text)
     else:
         return urllib.quote_plus(text)
+
+
+# Client intro
+def info():
+    return """Duplicati Client
+
+Connect to Duplicati remotely or locally and manage them through the CLI.
+
+To begin log into a server:
+    duplicati login https://my.duplicati.server
+
+or see --help to see information on usage
+"""
 
 
 # argparse argument logic
