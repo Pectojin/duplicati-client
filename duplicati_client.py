@@ -53,17 +53,17 @@ def main(**args):
     # Load configuration
     data = load_config(data)
 
+    param_file = args.get("param-file", None)
     # Set parameters file
     if method == "params":
-        param_file = args.get("param-file", None)
         data = set_parameters_file(data, args, param_file)
 
     # Load parameters file
     args = load_parameters(data, args)
 
     # Show parameters
-    if method == "params" and args.get("show", False):
-        show_parameters(data)
+    if method == "params" and (args.get("show", False) or param_file is None):
+        display_parameters(data)
 
     # Toggle verbosity
     if method == "verbose":
@@ -747,19 +747,21 @@ def load_parameters(data, args):
 
 
 # Print parameters to stdout
-def show_parameters(data):
+def display_parameters(data):
     file = data.get("parameters_file", None)
     if file is None:
         return
     with open(file, 'r') as file_handle:
         try:
             parameters_file = yaml.safe_load(file_handle)
+            log_output("Parameters:", True)
             output = yaml.dump(parameters_file, default_flow_style=False)
             log_output(output, True)
             return
         except Exception:
             message = "Could not load parameters file"
             log_output(message, True)
+            return
 
 
 # Import resource wrapper function
@@ -1046,6 +1048,7 @@ def bytes_2_human_readable(number_of_bytes):
 
     return str(number_of_bytes) + ' ' + unit
 
+
 # Python 3 vs 2 urllib compatibility issues
 def unquote(text):
     if sys.version_info[0] >= 3:
@@ -1141,7 +1144,8 @@ if __name__ == '__main__':
     message = "the ID of the backup to delete"
     delete_parser.add_argument('id', type=int, help=message)
     message = "delete the local database"
-    delete_parser.add_argument('--delete-db', action='store_true', help=message)
+    delete_parser.add_argument('--delete-db', 
+                               action='store_true', help=message)
 
     # Subparser for the Edit method
     message = "edit a resource on the server"
