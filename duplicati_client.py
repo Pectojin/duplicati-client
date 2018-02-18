@@ -120,7 +120,7 @@ def main(**args):
     # Delete a backup
     if method == "delete":
         backup_id = args.get("id", None)
-        delete_db = args.get("delete-db", False)
+        delete_db = args.get("delete_db", False)
         delete_backup(data, backup_id, delete_db)
 
     # Import method
@@ -128,7 +128,7 @@ def main(**args):
         import_type = args.get("type", None)
         import_file = args.get("import-file", None)
         import_id = args.get("id", None)
-        import_meta = args.get("import-metadata", False)
+        import_meta = args.get("import_metadata", False)
         import_resource(data, import_type, import_file, import_id, import_meta)
 
     # Export method
@@ -475,7 +475,8 @@ def delete_backup(data, backup_id, delete_db=False):
     # We cannot delete remote files because the captcha is graphical
     payload = {'delete-local-db': delete_db, 'delete-remote-files': False}
 
-    r = requests.delete(baseurl, headers=headers, cookies=cookies, params=payload)
+    r = requests.delete(baseurl, headers=headers, 
+                        cookies=cookies, params=payload)
     if r.status_code == 400:
         log_output("Session expired. Please login again", True, r.status_code)
         sys.exit(2)
