@@ -424,11 +424,13 @@ def backup_filter(json_input):
 
         progress_state = key.get("Progress", {})
         state = progress_state.get("Phase", None)
+        speed = progress_state.get("BackendSpeed", 0)
         progress = {
             "State": state,
             "Counting": progress_state.get("StillCounting", False),
             "Backend": {
-                "BackendAction": progress_state.get("BackendAction", 0),
+                "Action": progress_state.get("BackendAction", 0),
+                "Speed": bytes_2_human_readable(speed) + "/s"
             },
             "Task ID": progress_state.get("TaskID", -1),
         }
@@ -447,7 +449,7 @@ def backup_filter(json_input):
         total = progress_state.get("BackendFileSize", 0)
         if current > 0 and total > 0:
             backend_progress = "{0:.2f}".format(current / total * 100)
-            progress["Backend"]["BackendProgress"] = backend_progress + "%"
+            progress["Backend"]["Progress"] = backend_progress + "%"
         # Don't show the backend stats on finished tasks
         phase = progress_state.get("Phase", "")
         if phase in ["Backup_Complete", "Error"]:
@@ -997,6 +999,38 @@ def format_duration(duration_string):
     duration = duration_string.split(".")[0]
     return duration
 
+
+# Common function for human readable bit sizes
+# Source https://stackoverflow.com/questions/12523586/
+def bytes_2_human_readable(number_of_bytes):
+    if number_of_bytes < 0:
+        raise ValueError("!!! numberOfBytes can't be smaller than 0 !!!")
+
+    step_to_greater_unit = 1024.
+
+    number_of_bytes = float(number_of_bytes)
+    unit = 'bytes'
+
+    if (number_of_bytes / step_to_greater_unit) >= 1:
+        number_of_bytes /= step_to_greater_unit
+        unit = 'KB'
+
+    if (number_of_bytes / step_to_greater_unit) >= 1:
+        number_of_bytes /= step_to_greater_unit
+        unit = 'MB'
+
+    if (number_of_bytes / step_to_greater_unit) >= 1:
+        number_of_bytes /= step_to_greater_unit
+        unit = 'GB'
+
+    if (number_of_bytes / step_to_greater_unit) >= 1:
+        number_of_bytes /= step_to_greater_unit
+        unit = 'TB'
+
+    precision = 2
+    number_of_bytes = round(number_of_bytes, precision)
+
+    return str(number_of_bytes) + ' ' + unit
 
 # Python 3 vs 2 urllib compatibility issues
 def unquote(text):
