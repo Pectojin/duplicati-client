@@ -632,18 +632,29 @@ def toggle_verbose(data):
 
 # Print the status to stdout
 def display_status(data):
-    if data.get("token", None) is not None:
-        log_output("Logged in", True)
-    else:
+    global config_file
+
+    token = data.get("token", None)
+    token_expires = data.get("token_expires", None)
+    if token is None or token_expires is None:
         log_output("Not logged in", True)
         sys.exit(2)
+
     if data.get("last_login", None) is not None:
         last_login = data.get("last_login", "")
-        message = "Last login: " + str(last_login)
+        message = "Logged in  : " + format_time(last_login)
         log_output(message, True)
+
+    if token_expires is not None:
+        message = "Expiration : " + format_time(token_expires)
+        log_output(message, True)
+
+    message = "Config file: " + config_file
+    log_output(message, True)
+
     if data.get("parameters_file", None) is not None:
         param_file = data.get("parameters_file", "")
-        message = "Parameters file: " + param_file
+        message = "Params file: " + param_file
         log_output(message, True)
 
 
@@ -961,6 +972,9 @@ def create_baseurl(data, additional_path, append_token=False):
 
 # Common function for formatting timestamps for humans
 def format_time(time_string):
+    # Ensure it's a string
+    time_string = str(time_string)
+
     # Filter out "unset" time
     if time_string == "0001-01-01T00:00:00Z" or time_string == "0":
         return None
