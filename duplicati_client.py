@@ -184,10 +184,8 @@ def fetch_resource_list(data, resource):
     cookies = create_cookies(data)
     headers = create_headers(data)
     r = requests.get(baseurl + resource, headers=headers, cookies=cookies)
-    if r.status_code == 400:
-        log_output("Session expired. Please login again", True, r.status_code)
-        sys.exit(2)
-    elif r.status_code != 200:
+    check_response(data, r.status_code)
+    if r.status_code != 200:
         log_output("Error connecting", True, r.status_code)
         sys.exit(2)
     else:
@@ -292,10 +290,7 @@ def fetch_notifications(data, notification_ids, method):
     headers = create_headers(data)
     notification_list = []
     r = requests.get(baseurl, headers=headers, cookies=cookies)
-    if r.status_code == 400:
-        message = "Session expired. Please login again"
-        log_output(message, True, r.status_code)
-        sys.exit(2)
+    check_response(data, r.status_code)
     if r.status_code != 200:
         id_list = ', '.join(notification_ids)
         message = "Error getting notifications " + id_list
@@ -351,10 +346,7 @@ def fetch_backups(data, backup_ids, method):
     for backup_id in backup_ids:
         r = requests.get(baseurl + str(backup_id),
                          headers=headers, cookies=cookies)
-        if r.status_code == 400:
-            message = "Session expired. Please login again"
-            log_output(message, True, r.status_code)
-            sys.exit(2)
+        check_response(data, r.status_code)
         if r.status_code != 200:
             message = "Error getting backup " + str(backup_id)
             log_output(message, True, r.status_code)
@@ -383,6 +375,7 @@ def fetch_progress_state(data):
     headers = create_headers(data)
     # Check progress state and get info for the running backup
     r = requests.get(baseurl, headers=headers, cookies=cookies)
+    check_response(data, r.status_code)
     if r.status_code != 200:
         log_output("Error getting progressstate ", False, r.status_code)
         active_id = -1
@@ -430,8 +423,9 @@ def backup_filter(json_input):
             schedule.pop("Tags", None)
 
         progress_state = key.get("Progress", {})
+        state = progress_state.get("Phase", None)
         progress = {
-            "State": progress_state.get("Phase", None),
+            "State": state,
             "Counting": progress_state.get("StillCounting", False),
             "Backend": {
                 "BackendAction": progress_state.get("BackendAction", 0),
@@ -444,14 +438,15 @@ def backup_filter(json_input):
         # Avoid 0 division
         file_count = progress_state.get("ProcessedFileCount", 0)
         total_file_count = progress_state.get("TotalFileCount", 0)
-        if file_count > 0 and total_file_count > 0:
+        processing = state == "Backup_ProcessingFiles"
+        if file_count > 0 and total_file_count > 0 and processing:
             processed = "{0:.2f}".format(file_count / total_file_count * 100)
             progress["Processed files"] = processed + "%"
         # Avoid 0 division
-        file_progress = progress_state.get("BackendFileProgress", 0)
-        file_size = progress_state.get("BackendFileSize", 0)
-        if file_progress > 0 and file_size > 0:
-            backend_progress = "{0:.2f}".format(file_progress / file_size * 100)
+        current = progress_state.get("BackendFileProgress", 0)
+        total = progress_state.get("BackendFileSize", 0)
+        if current > 0 and total > 0:
+            backend_progress = "{0:.2f}".format(current / total * 100)
             progress["Backend"]["BackendProgress"] = backend_progress + "%"
         # Don't show the backend stats on finished tasks
         phase = progress_state.get("Phase", "")
@@ -477,10 +472,8 @@ def run_backup(data, backup_id):
     headers = create_headers(data)
 
     r = requests.post(baseurl, headers=headers, cookies=cookies)
-    if r.status_code == 400:
-        log_output("Session expired. Please login again", True, r.status_code)
-        sys.exit(2)
-    elif r.status_code != 200:
+    check_response(data, r.status_code)
+    if r.status_code != 200:
         log_output("Error scheduling backup ", True, r.status_code)
         return
     log_output("Backup scheduled", True, 200)
@@ -495,10 +488,8 @@ def abort_task(data, task_id):
     headers = create_headers(data)
 
     r = requests.post(baseurl, headers=headers, cookies=cookies)
-    if r.status_code == 400:
-        log_output("Session expired. Please login again", True, r.status_code)
-        sys.exit(2)
-    elif r.status_code != 200:
+    check_response(data, r.status_code)
+    if r.status_code != 200:
         log_output("Error aborting task ", True, r.status_code)
         return
     log_output("Task aborted", True, 200)
@@ -516,10 +507,8 @@ def delete_backup(data, backup_id, delete_db=False):
 
     r = requests.delete(baseurl, headers=headers,
                         cookies=cookies, params=payload)
-    if r.status_code == 400:
-        log_output("Session expired. Please login again", True, r.status_code)
-        sys.exit(2)
-    elif r.status_code == 404:
+    check_response(data, r.status_code)
+    if r.status_code == 404:
         log_output("Backup not found", True, r.status_code)
         return
     elif r.status_code != 200:
@@ -813,10 +802,8 @@ def import_backup(data, import_file, backup_id=None, import_meta=False):
     }
     cookies = create_cookies(data)
     r = requests.post(baseurl, files=files, cookies=cookies, data=payload)
-    if r.status_code == 400:
-        log_output("Session expired. Please login again", True, r.status_code)
-        sys.exit(2)
-    elif r.status_code != 200:
+    check_response(data, r.status_code)
+    if r.status_code != 200:
         log_output("Error importing backup configuration", True, r.status_code)
         sys.exit(2)
     log_output("Backup job created", True, 200)
@@ -906,15 +893,23 @@ def verify_token(data):
         sys.exit(2)
 
 
+# Common function for checking API responses for session expiration
+def check_response(data, status_code):
+    # Exit if session expired
+    if status_code == 400:
+        message = "Session expired. Please login again"
+        log_output(message, True, status_code)
+        sys.exit(2)
+
+    # Refresh token duration if request is OK
+    if status_code == 200:
+        data["token_expires"] = datetime.datetime.now()
+        write_config(data)
+
+
 # Common function for logging messages
 def log_output(text, important, code=None):
     global verbose
-    global data
-
-    # Refresh token duration
-    if code == 200:
-        data["token_expires"] = datetime.datetime.now()
-        write_config(data)
 
     # Determine whether the message should be displayed in stdout
     if verbose is False and important is False:
