@@ -117,6 +117,12 @@ def main(**args):
         backup_id = args.get("id", None)
         abort_task(data, backup_id)
 
+    # Delete a backup
+    if method == "delete":
+        backup_id = args.get("id", None)
+        delete_db = args.get("delete-db", False)
+        delete_backup(data, backup_id, delete_db)
+
     # Import method
     if method == "import":
         import_type = args.get("type", None)
@@ -430,7 +436,7 @@ def run_backup(data, backup_id):
     baseurl = create_baseurl(data, "/api/v1/backup/" + str(backup_id) + "/run")
     cookies = create_cookies(data)
     headers = create_headers(data)
-    # Check progress state and get info for the running backup
+
     r = requests.post(baseurl, headers=headers, cookies=cookies)
     if r.status_code == 400:
         log_output("Session expired. Please login again", True, r.status_code)
@@ -448,13 +454,36 @@ def abort_task(data, task_id):
     baseurl = create_baseurl(data, "/api/v1/task/" + str(task_id) + "/abort")
     cookies = create_cookies(data)
     headers = create_headers(data)
-    # Check progress state and get info for the running backup
+
     r = requests.post(baseurl, headers=headers, cookies=cookies)
     if r.status_code == 400:
         log_output("Session expired. Please login again", True, r.status_code)
         sys.exit(2)
     elif r.status_code != 200:
         log_output("Error aborting task ", True, r.status_code)
+        return
+    log_output("Task aborted", True, 200)
+
+
+# Call the API to delete a backup
+def delete_backup(data, backup_id, delete_db=False):
+    verify_token(data)
+
+    baseurl = create_baseurl(data, "/api/v1/backup/" + str(backup_id))
+    cookies = create_cookies(data)
+    headers = create_headers(data)
+    # We cannot delete remote files because the captcha is graphical
+    payload = {'delete-local-db': delete_db, 'delete-remote-files': False}
+
+    r = requests.delete(baseurl, headers=headers, cookies=cookies)
+    if r.status_code == 400:
+        log_output("Session expired. Please login again", True, r.status_code)
+        sys.exit(2)
+    elif r.status_code == 404:
+        log_output("Backup not found", True, r.status_code)
+        return
+    elif r.status_code != 200:
+        log_output("Error deleting backup", True, r.status_code)
         return
     log_output("Task aborted", True, 200)
 
@@ -1019,6 +1048,17 @@ if __name__ == '__main__':
     abort_parser = subparsers.add_parser('abort', help=message)
     message = "the ID of the task to abort"
     abort_parser.add_argument('id', help=message)
+
+    # Subparser for the Delete method
+    message = "delete a backup"
+    delete_parser = subparsers.add_parser('delete', help=message)
+    choices = ["backup"]
+    message = "the type of resource"
+    delete_parser.add_argument('type', choices=choices, help=message)
+    message = "the ID of the backup to delete"
+    delete_parser.add_argument('id', type=int, help=message)
+    message = "delete the local database"
+    delete_parser.add_argument('--delete-db', action='store_true', help=message)
 
     # Subparser for the Edit method
     message = "edit a resource on the server"
