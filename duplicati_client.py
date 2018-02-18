@@ -330,13 +330,13 @@ def fetch_backups(data, backup_ids, method):
     baseurl = create_baseurl(data, "/api/v1/backup/")
     # Iterate over backup_ids and fetch their info
     for backup_id in backup_ids:
-        r = requests.get(baseurl + backup_id, headers=headers, cookies=cookies)
+        r = requests.get(baseurl + str(backup_id), headers=headers, cookies=cookies)
         if r.status_code == 400:
             message = "Session expired. Please login again"
             log_output(message, True, r.status_code)
             sys.exit(2)
         if r.status_code != 200:
-            message = "Error getting backup " + backup_id
+            message = "Error getting backup " + str(backup_id)
             log_output(message, True, r.status_code)
             continue
         data = r.json()["data"]
@@ -475,7 +475,7 @@ def delete_backup(data, backup_id, delete_db=False):
     # We cannot delete remote files because the captcha is graphical
     payload = {'delete-local-db': delete_db, 'delete-remote-files': False}
 
-    r = requests.delete(baseurl, headers=headers, cookies=cookies)
+    r = requests.delete(baseurl, headers=headers, cookies=cookies, params=payload)
     if r.status_code == 400:
         log_output("Session expired. Please login again", True, r.status_code)
         sys.exit(2)
@@ -485,7 +485,7 @@ def delete_backup(data, backup_id, delete_db=False):
     elif r.status_code != 200:
         log_output("Error deleting backup", True, r.status_code)
         return
-    log_output("Task aborted", True, 200)
+    log_output("Backup deleted", True, 200)
 
 
 # Login by authenticating against the Duplicati API and extracting a token
