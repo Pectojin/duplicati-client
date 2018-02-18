@@ -258,7 +258,7 @@ def describe_resource(data, resource_type, resource_id):
 def fetch_notifications(data, notification_ids, method):
     verify_token(data)
 
-    log_output("Fetching notifications list from API...", False)
+    log_output("Fetching notifications from API...", False)
     baseurl = create_baseurl(data, "/api/v1/notifications")
     cookies = create_cookies(data)
     headers = create_headers(data)
@@ -313,7 +313,7 @@ def notification_filter(json_input):
 def fetch_backups(data, backup_ids, method):
     verify_token(data)
 
-    log_output("Fetching backup list from API...", False)
+    log_output("Fetching backups from API...", False)
     baseurl = create_baseurl(data, "/api/v1/progressstate")
     cookies = create_cookies(data)
     headers = create_headers(data)
@@ -925,7 +925,7 @@ def create_baseurl(data, additional_path, append_token=False):
 # Common function for formatting timestamps for humans
 def format_time(time_string):
     # Filter out "unset" time
-    if time_string == "0001-01-01T00:00:00Z":
+    if time_string == "0001-01-01T00:00:00Z" or time_string == "0":
         return None
 
     # We want to fail silently if we're not provided a parsable time_string.
@@ -1035,19 +1035,19 @@ if __name__ == '__main__':
     ]
     describe_parser.add_argument('type', choices=choices, help=message)
     message = "the ID of the resource to look up"
-    describe_parser.add_argument('id', help=message)
+    describe_parser.add_argument('id', type=int, help=message)
 
     # Subparser for the Run method
     message = "run a backup job"
     run_parser = subparsers.add_parser('run', help=message)
     message = "the ID of the backup job to run"
-    run_parser.add_argument('id', help=message)
+    run_parser.add_argument('id', type=int, help=message)
 
     # Subparser for the Abort method
     message = "abort a task"
     abort_parser = subparsers.add_parser('abort', help=message)
     message = "the ID of the task to abort"
-    abort_parser.add_argument('id', help=message)
+    abort_parser.add_argument('id', type=int, help=message)
 
     # Subparser for the Delete method
     message = "delete a backup"
@@ -1066,7 +1066,7 @@ if __name__ == '__main__':
     message = "the type of resource"
     edit_parser.add_argument('type', help=message)
     message = "the ID of the resource to edit"
-    edit_parser.add_argument('id', help=message)
+    edit_parser.add_argument('id', type=int, help=message)
 
     # Subparser for the Export method
     message = "export a resource from the server to YAMl or JSON format"
@@ -1075,7 +1075,7 @@ if __name__ == '__main__':
     message = "the type of resource"
     export_parser.add_argument('type', choices=choices, help=message)
     message = "the ID of the resource to export"
-    export_parser.add_argument('id', help=message)
+    export_parser.add_argument('id', type=int, help=message)
     choices = [
         "YAML",
         "JSON",
@@ -1111,7 +1111,7 @@ if __name__ == '__main__':
     message = "the type of resource"
     logs_parser.add_argument('type', choices=choices, help=message)
     message = "If applicable"
-    logs_parser.add_argument('id', nargs='?', help=message)
+    logs_parser.add_argument('id', type=int, nargs='?', help=message)
 
     # Subparser for the Login method
     message = "log into a Duplicati server"
