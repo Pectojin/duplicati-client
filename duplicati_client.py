@@ -754,7 +754,6 @@ def display_parameters(data):
     with open(file, 'r') as file_handle:
         try:
             parameters_file = yaml.safe_load(file_handle)
-            log_output("Parameters:", True)
             output = yaml.dump(parameters_file, default_flow_style=False)
             log_output(output, True)
             return
