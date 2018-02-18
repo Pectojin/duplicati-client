@@ -1,5 +1,13 @@
 # Duplicati client
-Version 0.1.3 alpha
+Version 0.1.5 alpha
+
+## 0.1.5 alpha (d8f3007)
+Added delete command to allow deleting backups
+
+Improved filter on the backup get command to provide better information
+
+Added some type checks to fail early on bad input
+
 
 ## 0.1.3 alpha (f248a4e)
 Added a `--show` argument to the params command to allow viewing parameters without navigating the file

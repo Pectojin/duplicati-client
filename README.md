@@ -50,6 +50,8 @@ Logout when you're done
     get       display breif information on one or many resources
     describe  display detailed information on a specific resource
     run       run a backup job
+    abort     abort a task
+    delete    delete a backup
     edit      edit a resource on the server
     export    export a resource from the server to YAMl or JSON format
     import    import a resource to the server from a YAMl or JSON file
