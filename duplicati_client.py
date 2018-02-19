@@ -480,6 +480,8 @@ def backup_filter(json_input):
 # Fetch logs
 def get_logs(data, log_type, backup_id, remote=False,
              follow=False, lines=10, show_all=False):
+        verify_token(data)
+
         if log_type == "backup" and backup_id is None:
             log_output("A backup id must be provided with --id", True)
             sys.exit(2)
@@ -788,6 +790,8 @@ def login(data, input_url=None, password=None):
 
     # Update the config file with provided values
     data["token"] = token
+    expiration = datetime.datetime.now() + datetime.timedelta(0, 600)
+    data["token_expires"] = expiration
     data["last_login"] = datetime.datetime.now()
     write_config(data)
     return
@@ -1079,10 +1083,8 @@ def verify_token(data):
     expires = expires.replace(tzinfo=tz.tzutc())
     expires = expires.astimezone(tz.tzlocal())
 
-    # Get the delta
-    delta = (now - expires)
     # Check if token has expired
-    if delta.seconds > 600:
+    if now > expires:
         log_output("Token expired", True)
         sys.exit(2)
 
@@ -1097,7 +1099,8 @@ def check_response(data, status_code):
 
     # Refresh token duration if request is OK
     if status_code == 200:
-        data["token_expires"] = datetime.datetime.now()
+        expiration = datetime.datetime.now() + datetime.timedelta(0, 600)
+        data["token_expires"] = expiration
         write_config(data)
 
 
