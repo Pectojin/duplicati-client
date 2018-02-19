@@ -1,5 +1,20 @@
 # Duplicati client
-Version 0.1.5 alpha
+Version 0.1.17 alpha
+
+## 0.1.17 alpha (021f0be)
+Added logging functionality. Supports showing backup logs, remote logs, stored logs, and each level of live logs (profiling, information, warning, error). Also provides a `--follow` mode that will periodically pull new logs from the server.
+
+Updated parameters command to work *like* the config command when no input is provided.
+
+Added speed indicator to the get backup command output
+
+Updated config command to provide expiration information and configuration file path
+
+Updated the list backups command to show breif progress information on running jobs
+
+Improved consistency in internal token expiration tracking
+
+Various bug fixes
 
 ## 0.1.5 alpha (d8f3007)
 Added delete command to allow deleting backups
