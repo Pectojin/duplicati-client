@@ -6,9 +6,11 @@ import getpass
 import hashlib
 import json
 import os.path
+import platform
 import re
 import requests
 import sys
+import time
 import urllib
 import yaml
 
@@ -106,6 +108,16 @@ def main(**args):
         resource_type = args.get("type", None)
         resource_id = args.get("id", None)
         describe_resource(data, resource_type, resource_id)
+
+    # Show logs
+    if method == "logs":
+        log_type = args.get("type", None)
+        backup_id = args.get("id", None)
+        remote = args.get("remote", False)
+        follow = args.get("follow", False)
+        lines = args.get("lines", 10)
+        show_all = args.get("all", False)
+        get_logs(data, log_type, backup_id, remote, follow, lines, show_all)
 
     # Run backup
     if method == "run":
@@ -463,6 +475,168 @@ def backup_filter(json_input):
         backup_list.append(key)
 
     return backup_list
+
+
+# Fetch logs
+def get_logs(data, log_type, backup_id, remote=False, follow=False, lines=10, show_all=False):
+        if log_type == "backup" and backup_id is None:
+            log_output("A backup id must be provided with --id", True)
+            sys.exit(2)
+
+        # Treating functions as objects to allow any function to be "followed"
+        if log_type == "backup" and remote:
+            def function():
+                get_backup_logs(data, backup_id, "remotelog", lines, show_all)
+        elif log_type == "backup" and not remote:
+            def function():
+                get_backup_logs(data, backup_id, "log", lines, show_all)
+
+        if log_type in ["profiling", "information", "warning", "error"]:
+            def function():
+                get_live_logs(data, log_type, lines)
+
+        if log_type == "stored":
+            def function():
+                get_stored_logs(data, lines, show_all)
+
+
+        # Follow the function or just run it once
+        if follow:
+            follow_function(function, 10)
+        else:
+            function()
+
+
+# Get local and remote backup logs
+def get_backup_logs(data, backup_id, log_type, page_size=5, show_all=False):
+    endpoint = "/api/v1/backup/" + str(backup_id) + "/" + log_type
+    baseurl = create_baseurl(data, endpoint)
+    cookies = create_cookies(data)
+    headers = create_headers(data)
+    params = {'pagesize': page_size}
+
+    r = requests.get(baseurl, headers=headers, cookies=cookies, params=params)
+    check_response(data, r.status_code)
+    if r.status_code == 500:
+        log_output("Error getting log, database may be locked by backup", True)
+        return
+    elif r.status_code != 200:
+        log_output("Error getting log", True, r.status_code)
+        return
+
+    result = r.json()[-page_size:]
+    logs = []
+    for log in result:
+        if log.get("Operation", "") == "list":
+            log["Data"] = "Expunged"
+        else: 
+            log["Data"] = json.loads(log.get("Data", "{}"))
+            size = bytes_2_human_readable(log["Data"].get("Size", 0))
+            log["Data"]["Size"] = size
+
+        if log.get("Message", None) is not None:
+            log["Message"] = log["Message"].split("\n")
+            message_length = len(log["Message"])
+            if message_length > 15 and not show_all:
+                log["Message"] = log["Message"][:15]
+                log["Message"].append("... " + str(message_length - 15) + " hidden lines (show with --all)...")
+        if log.get("Exception", None) is not None:
+            log["Exception"] = log["Exception"].split("\n")
+            exception_length = len(log["Exception"])
+            if exception_length > 15 and not show_all:
+                log["Exception"] = log["Exception"][:15]
+                log["Exception"].append("... " + str(exception_length - 15) + " hidden lines (show with --all)...")
+
+        log["Timestamp"] = datetime.datetime.fromtimestamp(
+            int(log.get("Timestamp", 0))
+        ).strftime("%I:%M:%S %p %d/%m/%Y")
+        logs.append(log)
+    message = yaml.safe_dump(logs, default_flow_style=False)
+    log_output(message, True)
+
+
+# Get live logs
+def get_live_logs(data, level, page_size=5, first_id=0):
+    baseurl = create_baseurl(data, "/api/v1/logdata/poll")
+    cookies = create_cookies(data)
+    headers = create_headers(data)
+    params = {'level': level, 'id': first_id, 'pagesize': page_size}
+
+    r = requests.get(baseurl, headers=headers, cookies=cookies, params=params)
+    check_response(data, r.status_code)
+    if r.status_code == 500:
+        log_output("Error getting log, database may be locked by backup", True)
+        return
+    elif r.status_code != 200:
+        log_output("Error getting log", True, r.status_code)
+        return
+
+    result = r.json()[-page_size:]
+    logs = []
+    for log in result:
+        log["When"] = format_time(log.get("When", ""), True)
+        logs.append(log)
+    
+    if len(logs) == 0:
+        log_output("No log entries found", True)
+        return
+
+    message = yaml.safe_dump(logs, default_flow_style=False)
+    log_output(message, True)
+
+
+# Get stored logs
+def get_stored_logs(data, page_size=5, show_all=False):
+    baseurl = create_baseurl(data, "/api/v1/logdata/log")
+    cookies = create_cookies(data)
+    headers = create_headers(data)
+    params = {'pagesize': page_size}
+
+    r = requests.get(baseurl, headers=headers, cookies=cookies, params=params)
+    check_response(data, r.status_code)
+    if r.status_code == 500:
+        log_output("Error getting log, database may be locked by backup", True)
+        return
+    elif r.status_code != 200:
+        log_output("Error getting log", True, r.status_code)
+        return
+
+    result = r.json()[-page_size:]
+    logs = []
+    for log in result:
+        if log.get("Message", None) is not None:
+            log["Message"] = log["Message"].split("\n")
+            message_length = len(log["Message"])
+            if message_length > 15 and not show_all:
+                log["Message"] = log["Message"][:15]
+                log["Message"].append("... " + str(message_length - 15) + " hidden lines (show with --all)...")
+        if log.get("Exception", None) is not None:
+            log["Exception"] = log["Exception"].split("\n")
+            exception_length = len(log["Exception"])
+            if exception_length > 15 and not show_all:
+                log["Exception"] = log["Exception"][:15]
+                log["Exception"].append("... " + str(exception_length - 15) + " hidden lines (show with --all)...")
+        logs.append(log)
+    
+    if len(logs) == 0:
+        log_output("No log entries found", True)
+        return
+
+    message = yaml.safe_dump(logs, default_flow_style=False)
+    log_output(message, True)
+
+
+# Repeatedly call other functions until interrupted
+def follow_function(function, interval=5):
+    try:
+        while True:
+            clear_prompt()
+            function()
+            log_output(format_time(datetime.datetime.now(), True), True)
+            log_output("Press control+C to quit", True)
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        return
 
 
 # Call the API to schedule a backup run next
@@ -972,7 +1146,7 @@ def create_baseurl(data, additional_path, append_token=False):
 
 
 # Common function for formatting timestamps for humans
-def format_time(time_string):
+def format_time(time_string, precise=False):
     # Ensure it's a string
     time_string = str(time_string)
 
@@ -986,6 +1160,10 @@ def format_time(time_string):
     except Exception as exc:
         log_output(exc, False)
         return None
+
+    # Print a precise, but human readable string if precise is true
+    if precise:
+        return datetime_object.strftime("%I:%M:%S %p %d/%m/%Y")
 
     # Now for comparison
     now = datetime.datetime.now()
@@ -1046,6 +1224,14 @@ def bytes_2_human_readable(number_of_bytes):
     number_of_bytes = round(number_of_bytes, precision)
 
     return str(number_of_bytes) + ' ' + unit
+
+
+# Clear terminal prompt
+def clear_prompt():
+    if platform.system() == 'Windows':
+        os.system('cls')
+    else:
+        os.system('clear')
 
 
 # Python 3 vs 2 urllib compatibility issues
@@ -1190,14 +1376,25 @@ if __name__ == '__main__':
     logs_parser = subparsers.add_parser('logs', help=message)
     choices = [
         "backup",
-        "restore",
-        "general",
-        "live"
+        "stored",
+        "profiling",
+        "information",
+        "warning",
+        "error"
     ]
-    message = "the type of resource"
-    logs_parser.add_argument('type', choices=choices, help=message)
-    message = "If applicable"
-    logs_parser.add_argument('id', type=int, nargs='?', help=message)
+    message = "backup, stored, profiling, information, warning, or error"
+    logs_parser.add_argument('type', metavar='type',choices=choices, help=message)
+    message = "backup id"
+    logs_parser.add_argument('--id', type=int, metavar='', help=message)
+    message = "view backend logs for the backup job"
+    logs_parser.add_argument('--remote', action='store_true', help=message)
+    message = "periodically pool for new logs until interrupted"
+    logs_parser.add_argument('--follow', action='store_true', help=message)
+    message = "log lines to display"
+    logs_parser.add_argument('--lines', action='store', default=5,
+                             type=int, metavar='', help=message)
+    message = "show all message and exception lines"
+    logs_parser.add_argument('--all', action='store_true', help=message)
 
     # Subparser for the Login method
     message = "log into a Duplicati server"
