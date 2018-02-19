@@ -478,7 +478,8 @@ def backup_filter(json_input):
 
 
 # Fetch logs
-def get_logs(data, log_type, backup_id, remote=False, follow=False, lines=10, show_all=False):
+def get_logs(data, log_type, backup_id, remote=False, 
+             follow=False, lines=10, show_all=False):
         if log_type == "backup" and backup_id is None:
             log_output("A backup id must be provided with --id", True)
             sys.exit(2)
@@ -490,15 +491,12 @@ def get_logs(data, log_type, backup_id, remote=False, follow=False, lines=10, sh
         elif log_type == "backup" and not remote:
             def function():
                 get_backup_logs(data, backup_id, "log", lines, show_all)
-
-        if log_type in ["profiling", "information", "warning", "error"]:
+        elif log_type in ["profiling", "information", "warning", "error"]:
             def function():
                 get_live_logs(data, log_type, lines)
-
-        if log_type == "stored":
+        elif log_type == "stored":
             def function():
                 get_stored_logs(data, lines, show_all)
-
 
         # Follow the function or just run it once
         if follow:
@@ -529,7 +527,7 @@ def get_backup_logs(data, backup_id, log_type, page_size=5, show_all=False):
     for log in result:
         if log.get("Operation", "") == "list":
             log["Data"] = "Expunged"
-        else: 
+        else:
             log["Data"] = json.loads(log.get("Data", "{}"))
             size = bytes_2_human_readable(log["Data"].get("Size", 0))
             log["Data"]["Size"] = size
@@ -539,13 +537,17 @@ def get_backup_logs(data, backup_id, log_type, page_size=5, show_all=False):
             message_length = len(log["Message"])
             if message_length > 15 and not show_all:
                 log["Message"] = log["Message"][:15]
-                log["Message"].append("... " + str(message_length - 15) + " hidden lines (show with --all)...")
+                lines = str(message_length - 15)
+                hidden_message = lines + " hidden lines (show with --all)"
+                log["Message"].append(hidden_message)
         if log.get("Exception", None) is not None:
             log["Exception"] = log["Exception"].split("\n")
             exception_length = len(log["Exception"])
             if exception_length > 15 and not show_all:
                 log["Exception"] = log["Exception"][:15]
-                log["Exception"].append("... " + str(exception_length - 15) + " hidden lines (show with --all)...")
+                lines = str(exception_length - 15)
+                hidden_message = lines + " hidden lines (show with --all)"
+                log["Exception"].append(hidden_message)
 
         log["Timestamp"] = datetime.datetime.fromtimestamp(
             int(log.get("Timestamp", 0))
@@ -576,7 +578,7 @@ def get_live_logs(data, level, page_size=5, first_id=0):
     for log in result:
         log["When"] = format_time(log.get("When", ""), True)
         logs.append(log)
-    
+
     if len(logs) == 0:
         log_output("No log entries found", True)
         return
@@ -609,15 +611,19 @@ def get_stored_logs(data, page_size=5, show_all=False):
             message_length = len(log["Message"])
             if message_length > 15 and not show_all:
                 log["Message"] = log["Message"][:15]
-                log["Message"].append("... " + str(message_length - 15) + " hidden lines (show with --all)...")
+                lines = str(message_length - 15)
+                hidden_message = lines + " hidden lines (show with --all)"
+                log["Message"].append(hidden_message)
         if log.get("Exception", None) is not None:
             log["Exception"] = log["Exception"].split("\n")
             exception_length = len(log["Exception"])
             if exception_length > 15 and not show_all:
                 log["Exception"] = log["Exception"][:15]
-                log["Exception"].append("... " + str(exception_length - 15) + " hidden lines (show with --all)...")
+                lines = str(exception_length - 15)
+                hidden_message = lines + " hidden lines (show with --all)"
+                log["Exception"].append(hidden_message)
         logs.append(log)
-    
+
     if len(logs) == 0:
         log_output("No log entries found", True)
         return
