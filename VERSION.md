@@ -1,5 +1,10 @@
 # Duplicati client
-Version 0.1.17 alpha
+Version 0.1.18 alpha
+
+## 0.1.18 alpha (cd2fc93)
+Fixed an issue where logging in would not refresh the expiration token.
+
+Changed the expiration token to be an expression of when the token expires instead of when it was renewed
 
 ## 0.1.17 alpha (021f0be)
 Added logging functionality. Supports showing backup logs, remote logs, stored logs, and each level of live logs (profiling, information, warning, error). Also provides a `--follow` mode that will periodically pull new logs from the server.
