@@ -478,7 +478,7 @@ def backup_filter(json_input):
 
 
 # Fetch logs
-def get_logs(data, log_type, backup_id, remote=False, 
+def get_logs(data, log_type, backup_id, remote=False,
              follow=False, lines=10, show_all=False):
         if log_type == "backup" and backup_id is None:
             log_output("A backup id must be provided with --id", True)
@@ -1335,7 +1335,7 @@ if __name__ == '__main__':
     message = "the ID of the backup to delete"
     delete_parser.add_argument('id', type=int, help=message)
     message = "delete the local database"
-    delete_parser.add_argument('--delete-db', 
+    delete_parser.add_argument('--delete-db',
                                action='store_true', help=message)
 
     # Subparser for the Edit method
