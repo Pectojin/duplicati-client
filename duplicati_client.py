@@ -54,7 +54,8 @@ def main(**args):
         config_file = args["config_file"]
 
     # Load configuration
-    data = load_config(data)
+    overwrite = args.get("overwrite", False)
+    data = load_config(data, overwrite)
 
     param_file = args.get("param-file", None)
     # Set parameters file
@@ -877,10 +878,10 @@ def display_status(data):
 
 
 # Load the configration from disk
-def load_config(data):
+def load_config(data, overwrite=False):
     global config_file
     # If the config file doesn't exist, create it
-    if os.path.isfile(config_file) is False:
+    if os.path.isfile(config_file) is False or overwrite is True:
         log_output("Creating config file", True)
         write_config(data)
     # Load the configuration from the config file
@@ -896,7 +897,25 @@ def load_config(data):
 
 # function for validating that required config fields are present
 def validate_config(data):
-    return
+    valid = True
+    if "server" not in data:
+        valid = False
+    if "protocol" not in data.get("server", {}):
+        valid = False
+    if "url" not in data.get("server", {}):
+        valid = False
+    if "port" not in data.get("server", {}):
+        valid = False
+    if "token" not in data:
+        valid = False
+    if "token_expires" not in data:
+        valid = False
+
+    if not valid:
+        message = "Configuration appears to be invalid. "
+        message += "You can re-create it with --overwrite."
+        log_output(message, True)
+        sys.exit(2)
 
 
 # Write config to file
@@ -1485,7 +1504,10 @@ if __name__ == '__main__':
 
     # Subparser for the Config method
     message = "prints the config to stdout"
-    subparsers.add_parser('config', help=message)
+    config_parser = subparsers.add_parser('config', help=message)
+    message = "create a new configuration"
+    config_parser.add_argument('--overwrite', action='store_true',
+                               help=message)
 
     # Subparser for the Daemon mode
     message = "run Duplicati Client as a service"
