@@ -8,7 +8,6 @@ import json
 import os.path
 import platform
 import re
-import requests
 import sys
 import time
 import urllib
@@ -18,6 +17,7 @@ from dateutil import parser as dateparser
 from dateutil import tz
 from os.path import expanduser
 from os.path import splitext
+from requests_wrapper import requests_wrapper as requests
 
 # Default values
 application_version = "0.1.18"
@@ -394,7 +394,6 @@ def fetch_progress_state(data):
     headers = create_headers(data)
     # Check progress state and get info for the running backup
     r = requests.get(baseurl, headers=headers, cookies=cookies)
-    check_response(data, r.status_code)
     if r.status_code != 200:
         log_output("Error getting progressstate ", False, r.status_code)
         active_id = -1
@@ -774,6 +773,7 @@ def login(data, input_url=None, password=None):
     baseurl = create_baseurl(data, "")
     log_output("Connecting to " + baseurl + "...", False)
     r = requests.get(baseurl, allow_redirects=False)
+    check_response(data, r.status_code)
     if r.status_code == 200:
         log_output("OK", False, r.status_code)
         token = unquote(r.cookies["xsrf-token"])
@@ -809,6 +809,7 @@ def login(data, input_url=None, password=None):
             "session-nonce": data.get("nonce", "")
         }
         r = requests.post(baseurl, data=payload, cookies=cookies)
+        check_response(data, r.status_code)
         if r.status_code == 200:
             log_output("Connected", True, r.status_code)
             data["session-auth"] = unquote(r.cookies["session-auth"])
@@ -1159,6 +1160,11 @@ def check_response(data, status_code):
     # Exit if session expired
     if status_code == 400:
         message = "Session expired. Please login again"
+        log_output(message, True, status_code)
+        sys.exit(2)
+
+    if status_code == 503:
+        message = "Server is not responding. Is it running?"
         log_output(message, True, status_code)
         sys.exit(2)
 
