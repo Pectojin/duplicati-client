@@ -140,7 +140,12 @@ def main(**args):
         import_type = args.get("type", None)
         import_file = args.get("import-file", None)
         import_id = args.get("id", None)
-        import_meta = args.get("import_metadata", False)
+        import_meta = args.get("import_metadata", None)
+        strip_meta = args.get("strip_metadata", False)
+        # Strip meta data is only valid when import_id is specified
+        if import_id is not None and not strip_meta:
+            import_meta = True
+
         import_resource(data, import_type, import_file, import_id, import_meta)
 
     # Export method
@@ -701,6 +706,29 @@ def delete_backup(data, backup_id, delete_db=False):
     log_output("Backup deleted", True, 200)
 
 
+def update_backup(data, backup_id, backup_config, import_meta=True):
+    verify_token(data)
+
+    # Strip metadata if requested
+    if import_meta is not None and not import_meta:
+        backup_config.get("Backup", {}).pop("Metadata", None)
+
+    baseurl = create_baseurl(data, "/api/v1/backup/" + str(backup_id))
+    cookies = create_cookies(data)
+    headers = create_headers(data)
+    payload = json.dumps(backup_config, default=str)
+    r = requests.put(baseurl, headers=headers,
+                     cookies=cookies, data=payload)
+    check_response(data, r.status_code)
+    if r.status_code == 404:
+        log_output("Backup not found", True, r.status_code)
+        return
+    elif r.status_code != 200:
+        log_output("Error updating backup", True, r.status_code)
+        return
+    log_output("Backup updated", True, 200)
+
+
 # Login by authenticating against the Duplicati API and extracting a token
 def login(data, input_url=None, password=None):
     # Split protocol, url, and port if port is provided as CLI argument
@@ -948,19 +976,13 @@ def display_parameters(data):
 
 
 # Import resource wrapper function
-def import_resource(data, resource, import_file, backup_id, import_meta):
+def import_resource(data, resource, import_file, backup_id, import_meta=None):
     if resource == "backup":
         import_backup(data, import_file, backup_id, import_meta)
 
 
 # Import backup configuration from a YAML or JSON file
-def import_backup(data, import_file, backup_id=None, import_meta=False):
-    # Determine if we're importing a new backup or updating an existing backup
-    if backup_id is None:
-        baseurl = create_baseurl(data, "/api/v1/backups/import", True)
-    else:
-        baseurl = create_baseurl(data, "/api/v1/backup/")
-
+def import_backup(data, import_file, backup_id=None, import_meta=None):
     # Don't load nonexisting files
     if os.path.isfile(import_file) is False:
         log_output(import_file + " not found", True)
@@ -983,6 +1005,16 @@ def import_backup(data, import_file, backup_id=None, import_meta=False):
                 log_output("Failed to load file as JSON", True)
                 return
 
+    # Determine if we're importing a new backup or updating an existing backup
+    if backup_id is not None:
+        return update_backup(data, backup_id, backup_config, import_meta)
+
+    verify_token(data)
+
+    # Strip metadata if requsted
+    if import_meta is None or import_meta is not True:
+        backup_config["Backup"]["Metadata"] = {}
+
     # Prepare the imported JSON object as a string
     backup_config = json.dumps(backup_config, default=str)
 
@@ -999,6 +1031,7 @@ def import_backup(data, import_file, backup_id=None, import_meta=False):
         'direct': True
     }
     cookies = create_cookies(data)
+    baseurl = create_baseurl(data, "/api/v1/backups/import", True)
     r = requests.post(baseurl, files=files, cookies=cookies, data=payload)
     check_response(data, r.status_code)
     if r.status_code != 200:
@@ -1376,9 +1409,14 @@ if __name__ == '__main__':
     import_parser.add_argument('type', choices=["backup"], help=message)
     message = "file containing a job configuration in YAML or JSON format"
     import_parser.add_argument('import-file', nargs='?', help=message)
-    message = "Import the metadata as well as the configuration"
-    import_parser.add_argument('--import-metadata', help=message,
-                               action='store_true')
+    message = "provide a backup id to update an existing backup"
+    import_parser.add_argument('--id', metavar='', help=message)
+    # Add mutual exclusion for the Import method
+    group = import_parser.add_mutually_exclusive_group()
+    message = "import the metadata when creating a backup"
+    group.add_argument('--import-metadata', help=message, action='store_true')
+    message = "strip the metadata before updating a backup"
+    group.add_argument('--strip-metadata', help=message, action='store_true')
 
     # Subparser for the Logs method
     message = "display the logs for a given job"
@@ -1392,7 +1430,8 @@ if __name__ == '__main__':
         "error"
     ]
     message = "backup, stored, profiling, information, warning, or error"
-    logs_parser.add_argument('type', metavar='type',choices=choices, help=message)
+    logs_parser.add_argument('type', metavar='type',
+                             choices=choices, help=message)
     message = "backup id"
     logs_parser.add_argument('--id', type=int, metavar='', help=message)
     message = "view backend logs for the backup job"
