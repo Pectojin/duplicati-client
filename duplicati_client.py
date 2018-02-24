@@ -20,6 +20,7 @@ from os.path import expanduser
 from os.path import splitext
 
 # Default values
+application_version = "0.1.18"
 config_file = "config.yml"
 verbose = True
 data = {
@@ -446,11 +447,13 @@ def backup_filter(json_input):
             "State": state,
             "Counting": progress_state.get("StillCounting", False),
             "Backend": {
-                "Action": progress_state.get("BackendAction", 0),
-                "Speed": bytes_2_human_readable(speed) + "/s"
+                "Action": progress_state.get("BackendAction", 0)
             },
             "Task ID": progress_state.get("TaskID", -1),
         }
+        if speed > 0:
+            progress["Backend"]["Speed"]: bytes_2_human_readable(speed) + "/s"
+
         # Display item only if relevant
         if not progress_state.get("StillCounting", False):
             progress.pop("Counting")
@@ -845,6 +848,17 @@ def toggle_verbose(data):
 # Print the status to stdout
 def display_status(data):
     global config_file
+    global application_version
+
+    log_output("Application version: " + application_version, True)
+
+    message = "Config file: " + config_file
+    log_output(message, True)
+
+    if data.get("parameters_file", None) is not None:
+        param_file = data.get("parameters_file", "")
+        message = "Params file: " + param_file
+        log_output(message, True)
 
     token = data.get("token", None)
     token_expires = data.get("token_expires", None)
@@ -861,14 +875,6 @@ def display_status(data):
         message = "Expiration : " + format_time(token_expires)
         log_output(message, True)
 
-    message = "Config file: " + config_file
-    log_output(message, True)
-
-    if data.get("parameters_file", None) is not None:
-        param_file = data.get("parameters_file", "")
-        message = "Params file: " + param_file
-        log_output(message, True)
-
 
 # Load the configration from disk
 def load_config(data):
@@ -881,9 +887,16 @@ def load_config(data):
     with open(config_file, 'r') as file:
         try:
             data = yaml.safe_load(file)
+            validate_config(data)
             return data
         except yaml.YAMLError as exc:
             log_output(exc, True)
+            sys.exit(2)
+
+
+# function for validating that required config fields are present
+def validate_config(data):
+    return
 
 
 # Write config to file
@@ -1217,7 +1230,11 @@ def format_time(time_string, precise=False):
     datetime_object = datetime_object.astimezone(tz.tzlocal())
 
     # Get the delta
-    delta = (now - datetime_object)
+    if (datetime_object > now):
+        delta = (datetime_object - now)
+    else:
+        delta = (now - datetime_object)
+
     # Display hours if within 24 hours of now, else display dmy
     if abs(delta.days) > 1:
         return datetime_object.strftime("%d/%m/%Y")
