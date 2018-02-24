@@ -2,6 +2,7 @@
 # Script for building Windows self contained binary
 # !! Windows does not natively run bash scripts, you must install CygWin to execute this !!
 # Requires: Pyinstaller, zip
+# You may need to run `dos2unix windows_build.sh` if you get the error `'\r': command not found`
 
 echo "Cleaning up old files..." 
 # Cleanup old dist files
