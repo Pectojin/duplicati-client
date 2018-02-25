@@ -11,13 +11,14 @@ Currently the script relies on multiple external libraries:
     python-dateutil
 
 # Installation
+## From source
+Clone the repo
+
+    git clone https://github.com/pectojin/duplicati_client
 The client runs in either Python 3 or Python 2 but requires the above dependencies
 
     pip3 install -r requirements.txt
-Then you're ready to "install" the application, so clone the repo
-
-    git clone https://github.com/pectojin/duplicati_client
-The Python script should be executeable already, but for convenience you can symlink it
+For convenience you can symlink the client
 
     sudo ln -s /location/of/git/repo/duplicati_client.py /usr/bin/duc
 On UNIX it should automatically attempt to use Python on your system so now you can just call
@@ -25,8 +26,17 @@ On UNIX it should automatically attempt to use Python on your system so now you 
     duc
 And you're good to go. 
 
-# Windows self contained binary
-For installation of the Windows self contained binary package I recommend copying it to `C:\Program Files\Duplicati Client` and then adding that path to your [environment variable path](https://www.computerhope.com/issues/ch000549.htm) so that you can call `duplicati_client.exe` from anywhere in your CLI.
+## Windows self contained binary
+For installation of the Windows self contained binary package I recommend copying it to `C:\Program Files\Duplicati Client` and then adding that path to your [environment variable path](https://www.computerhope.com/issues/ch000549.htm) so that you can call `duplicati_client` from anywhere in your CLI.
+
+## GNU/Linux and macOS self contained binaries
+Self contained binaries are also available for Linux and macOS. 
+
+These are useful if you cannot or will not install the 3rd party dependencies on your system, or if you experience compatibility problems with your current Python installation.
+
+I recommend copying the binary package to `/opt/duplicati_client` on Linux and `/Applications/Duplicati Client` on macOS. Then symlink the duplicati_client binary
+
+    sudo ln -s /location/of/duplicati_client /usr/bin/duc
 
 # Usage
 To begin log into a server:
@@ -61,8 +71,8 @@ Logout when you're done
     status    return information about the current session
     config    prints the config to stdout
     daemon    run Duplicati Client as a service
-    verbose   Toggle verbose mode
-    params    import parameters from a yaml file
+    verbose   toggle verbose mode
+    params    import parameters from a YAML file
 
 Some of the commands are placeholders until I get them implemented.
 
@@ -75,7 +85,6 @@ You must create the parameters file yourself. An example of a parameters file:
     
     password: verysecretpassword
     verbose: True
-    insecure: True
 
 Then specify that you want to use a parameters file
 
@@ -105,11 +114,19 @@ By default the client will export YAML, but you can manually specify either with
 The resulting file can then be used to create new backup jobs with the import command. Notice that the JSON output is identical to exporting from the Duplicati Web UI, so if you need interoperability use JSON. The YAML file is only understood by this client for now.
 
 # Import backups
-The import command enables creating new backup configurations from a configuration file. Use either a JSON file exported from the Duplicati Web UI or a YAML/JSOn file exported from this client. Input files are automatically converted into the JSOn format that the Duplicati server requires, so it does not matter which format you import from.
+The import command enables creating new backup configurations from a configuration file. Use either a JSON file exported from the Duplicati Web UI or a YAML/JSON file exported from this client. Input files are automatically converted into the JSON format that the Duplicati server requires, so it does not matter which format you import from.
 
     duc import backup [path_to_file]
 
 By default metadata will not be imported, but if you'd like to retain the metadata use `--import-metadata`
+
+You can also import the configuration over an existing job to update the job. Simply use the `--id` parameter to update a backup configuration.
+
+    duc import backup [path_to_file] --id=<backup_id>
+
+Duplicati does not currently allow to update a backup configuration without also overwriting the metadata. If your config file was exported a long time ago with old metadata you may not be interested in this. 
+
+Apply the `--strip-metadata` option to remove the metadata before updating the backup config. This way the metadata will not be displayed until the backup job has had a chance to run and provide the correct metadata.
 
 Encrypted configuration files are currently not supported.
 
