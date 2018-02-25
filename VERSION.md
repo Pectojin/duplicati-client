@@ -1,5 +1,20 @@
 # Duplicati client
-Version 0.1.18 alpha
+Version 0.1.26 alpha
+
+## 0.1.26 alpha (76075a8)
+Improved error handling when attempting to connect to a server that does not respond
+
+Updated the Import method to allow updating an existing backup from a configuration file
+
+Added configuration validation
+
+Added an option to overwrite the config file from within the client
+
+Fixed a bug where dates less than 24 hours in the past would be displayed as "Tomorrow"
+
+Fixed a bug where the client would abort when attempting to print backup info while the backup was running but not transferring data.
+
+Added build scripts for Windows, macOS, and GNU/Linux to ease the creation of self contained binaries for each platform
 
 ## 0.1.18 alpha (cd2fc93)
 Fixed an issue where logging in would not refresh the expiration token.

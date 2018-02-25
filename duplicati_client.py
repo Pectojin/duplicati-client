@@ -20,7 +20,7 @@ from os.path import splitext
 from requests_wrapper import requests_wrapper as requests
 
 # Default values
-application_version = "0.1.18"
+application_version = "0.1.26"
 config_file = "config.yml"
 verbose = True
 data = {
@@ -452,7 +452,7 @@ def backup_filter(json_input):
             "Task ID": progress_state.get("TaskID", -1),
         }
         if speed > 0:
-            progress["Backend"]["Speed"]: bytes_2_human_readable(speed) + "/s"
+            progress["Backend"]["Speed"] = bytes_2_human_readable(speed) + "/s"
 
         # Display item only if relevant
         if not progress_state.get("StillCounting", False):
