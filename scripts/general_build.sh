@@ -22,12 +22,9 @@ rm -rf $dir_name
 # Create release folder
 mkdir $dir_name
 
-# Copy binary into release folder
-cp ../dist/duplicati_client $dir_name
-
 cd $dir_name
 
-cp ../../../duplicati_client.py .
+cp ../../../*.py .
 
 # Add requirements.txt
 cp ../../../requirements.txt .
