@@ -45,9 +45,9 @@ def main(**args):
     global verbose
     global config_file
     global data
+
     # Detect home dir for config file
-    home = expanduser("~")
-    config_file = home + "/.config/duplicati_client/config.yml"
+    config_file = get_config_location()
 
     # Use an alternative config file if --config-file is provided
     if args.get("config_file", False):
@@ -1308,6 +1308,18 @@ def bytes_2_human_readable(number_of_bytes):
     number_of_bytes = round(number_of_bytes, precision)
 
     return str(number_of_bytes) + ' ' + unit
+
+
+# Use the correct directory for each OS
+def get_config_location():
+    home = expanduser("~")
+    if platform.system() == 'Windows':
+        config_dir = "/AppData/Local/DuplicatiClient/"
+    else:
+        config_dir = "/.config/duplicati-client/"
+
+    config_file = home + config_dir + "/config.yml"
+    return config_file
 
 
 # Clear terminal prompt
