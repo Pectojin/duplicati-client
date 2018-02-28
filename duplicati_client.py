@@ -838,6 +838,7 @@ def login(data, input_url=None, password=None):
     data["token_expires"] = expiration
     data["last_login"] = datetime.datetime.now()
     write_config(data)
+    log_output("Login successful", True)
     return
 
 
