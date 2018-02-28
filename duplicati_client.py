@@ -135,7 +135,8 @@ def main(**args):
     if method == "delete":
         backup_id = args.get("id", None)
         delete_db = args.get("delete_db", False)
-        delete_backup(data, backup_id, delete_db)
+        confirm = args.get("confirm", False)
+        delete_backup(data, backup_id, delete_db, confirm)
 
     # Import method
     if method == "import":
@@ -688,8 +689,21 @@ def abort_task(data, task_id):
 
 
 # Call the API to delete a backup
-def delete_backup(data, backup_id, delete_db=False):
+def delete_backup(data, backup_id, delete_db=False, confirm=False):
     verify_token(data)
+
+    # Check if the backup exists
+    result = fetch_backups(data, [backup_id], "get")
+    if result is None or len(result) == 0:
+        return
+
+    if not confirm:
+        # Confirm deletion with user
+        name = next(iter(result[0]))
+        agree = input('Delete "' + name + '"? (ID:' + str(backup_id) + ') [y/N]:')
+        if agree not in ["Y", "y", "yes", "YES"]:
+            log_output("Backup not deleted", True)
+            return
 
     baseurl = create_baseurl(data, "/api/v1/backup/" + str(backup_id))
     cookies = create_cookies(data)
@@ -700,10 +714,7 @@ def delete_backup(data, backup_id, delete_db=False):
     r = requests.delete(baseurl, headers=headers,
                         cookies=cookies, params=payload)
     check_response(data, r.status_code)
-    if r.status_code == 404:
-        log_output("Backup not found", True, r.status_code)
-        return
-    elif r.status_code != 200:
+    if r.status_code != 200:
         log_output("Error deleting backup", True, r.status_code)
         return
     log_output("Backup deleted", True, 200)
@@ -1426,6 +1437,9 @@ if __name__ == '__main__':
     delete_parser.add_argument('id', type=int, help=message)
     message = "delete the local database"
     delete_parser.add_argument('--delete-db',
+                               action='store_true', help=message)
+    message = "confirm deletion non-interactively"
+    delete_parser.add_argument('--confirm',
                                action='store_true', help=message)
 
     # Subparser for the Edit method
