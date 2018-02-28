@@ -22,7 +22,7 @@ from requests_wrapper import requests_wrapper as requests
 # Default values
 application_version = "0.1.26"
 config_file = "config.yml"
-verbose = True
+verbose = False
 data = {
     "last_login": None,
     "parameters_file": None,
@@ -33,7 +33,7 @@ data = {
     },
     'token': None,
     'token_expires': None,
-    'verbose': True
+    'verbose': False
 }
 
 
