@@ -264,6 +264,8 @@ def list_filter(json_input, resource):
 
     elif resource == "serversettings":
         for key, value in json_input.items():
+            if key == "update-check-latest":
+                continue
             setting = {
                 key: {
                     "value": value
