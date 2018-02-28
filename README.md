@@ -1,7 +1,38 @@
-# Duplicati client
-This client connects to Duplicati servers remotely or locally and helps manage them easily through the commandline.
+# Duplicati Client
+The Duplicati Client connects to Duplicati servers remotely or locally and helps manage them easily through the command-line.
 
 A client daemon mode will be available eventually, allowing to periodically pull instructions from a central management server.
+
+# Table of contents
+
+<!--ts-->
+   * [Why use Duplicati Client?](#why-use-duplicati-client)
+   * [External libraries used](#external-libraries-used)
+   * [Installation](#installation)
+      * [From source](#from-source)
+      * [Windows self contained binary](#windows-self-contained-binary)
+      * [GNU/Linux and macOS self contained binaries](#gnulinux-and-macos-self-contained-binaries)
+   * [Usage](#usage)
+   * [Supported commands](#supported-commands)
+   * [Parameters file](#parameters-file)
+   * [Export backups](#export-backups)
+   * [Import backups](#import-backups)
+   * [Daemon mode](#daemon-mode)
+   * [Task server API specification](#task-server-api-specification)
+<!--te-->
+
+# Why use Duplicati Client?
+Duplicati ships with a CommandLine tool that is capable of doing various actions like backups, restores, and verifying backend data. 
+
+However, the Duplicati CommandLine is a separate program. It does not communicate with the Duplicati Server that you interact with when using the web UI. 
+
+This plays out in various ways when trying to manually initiate a backup using the CommandLine tool and the Duplicati server not updating it's metadata or even showing that a backup is happening.
+
+Additionally, the CommandLine is *stateless* in the sense that you need to provide all the relevant information each time you want to run a command. This can be daunting if you just want to initiate a backup run on an existing backup.
+
+The Duplicati Client is a cross platform command-line tool that allows you to interact with the Duplicati Server as if you were using the web UI. It interacts with the same REST API as the web UI, which means it will behave the same and can be used from practically any machine that the web UI can be used from.
+
+Furthermore, this tool makes it easy to write custom scripts for use in cron jobs or ad-hoc tasks. You can simply call the Client from your script or cron job as most options can be provided inline by the script. Even if your Duplicati Server is password protected your scripts can easily log in by using a parametersfile.
 
 # External libraries used
 Currently the script relies on multiple external libraries:
@@ -34,7 +65,7 @@ Self contained binaries are also available for Linux and macOS.
 
 These are useful if you cannot or will not install the 3rd party dependencies on your system, or if you experience compatibility problems with your current Python installation.
 
-I recommend copying the binary package to `/opt/duplicati_client` on Linux and `/Applications/Duplicati Client` on macOS. Then symlink the duplicati_client binary
+I recommend copying the binary package to `/opt/duplicati-client` on Linux and `/Applications/Duplicati Client` on macOS. Then symlink the duplicati_client binary
 
     sudo ln -s /location/of/duplicati_client /usr/bin/duc
 
