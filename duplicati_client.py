@@ -793,7 +793,7 @@ def login(data, input_url=None, password=None):
     elif r.status_code == 302:
         # Get password by prompting user if no password was given in-line
         if password is None:
-            log_output("Authentication required", True, r.status_code)
+            log_output("Authentication required", False, r.status_code)
             password = getpass.getpass('Password:')
 
         log_output("Getting nonce and salt...", False)
@@ -824,7 +824,7 @@ def login(data, input_url=None, password=None):
         r = requests.post(baseurl, data=payload, cookies=cookies)
         check_response(data, r.status_code)
         if r.status_code == 200:
-            log_output("Connected", True, r.status_code)
+            log_output("Connected", False, r.status_code)
             data["session-auth"] = unquote(r.cookies["session-auth"])
         else:
             message = "Error authenticating against the server"
