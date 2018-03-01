@@ -1386,7 +1386,7 @@ if __name__ == '__main__':
     subparsers = parser.add_subparsers(title='commands', metavar="<>", help="")
 
     # Subparser for the List method
-    message = "List all resources of a given type"
+    message = "list all resources of a given type"
     list_parser = subparsers.add_parser('list', help=message)
     choices = [
         "backups",
@@ -1447,12 +1447,12 @@ if __name__ == '__main__':
                                action='store_true', help=message)
 
     # Subparser for the Edit method
-    message = "edit a resource on the server"
-    edit_parser = subparsers.add_parser('edit', help=message)
-    message = "the type of resource"
-    edit_parser.add_argument('type', help=message)
-    message = "the ID of the resource to edit"
-    edit_parser.add_argument('id', type=int, help=message)
+    # message = "edit a resource on the server"
+    # edit_parser = subparsers.add_parser('edit', help=message)
+    # message = "the type of resource"
+    # edit_parser.add_argument('type', help=message)
+    # message = "the ID of the resource to edit"
+    # edit_parser.add_argument('id', type=int, help=message)
 
     # Subparser for the Export method
     message = "export a resource from the server to YAMl or JSON format"
