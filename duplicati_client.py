@@ -829,6 +829,7 @@ def login(data, input_url=None, password=None):
         else:
             message = "Error authenticating against the server"
             log_output(message, True, r.status_code)
+            sys.exit(2)
     else:
         message = "Error connecting to server"
         log_output(message, True, r.status_code)
