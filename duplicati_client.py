@@ -1439,9 +1439,9 @@ if __name__ == '__main__':
     delete_parser.add_argument('type', choices=choices, help=message)
     message = "the ID of the backup to delete"
     delete_parser.add_argument('id', type=int, help=message)
-    message = "delete the local database"
-    delete_parser.add_argument('--delete-db',
-                               action='store_true', help=message)
+    # message = "delete the local database"
+    # delete_parser.add_argument('--delete-db',
+    #                            action='store_true', help=message)
     message = "confirm deletion non-interactively"
     delete_parser.add_argument('--confirm',
                                action='store_true', help=message)
