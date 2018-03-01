@@ -131,15 +131,36 @@ def main(**args):
         backup_id = args.get("id", None)
         abort_task(data, backup_id)
 
-    # Delete a backup
+    # Create method
+    if method == "create":
+        import_type = args.get("type", None)
+        import_file = args.get("import-file", None)
+        import_meta = args.get("import_metadata", None)
+
+        import_resource(data, import_type, import_file, None, import_meta)
+
+    # Update method
+    if method == "update":
+        import_type = args.get("type", None)
+        import_id = args.get("id", None)
+        import_file = args.get("import-file", None)
+        # import-metadata is the inverse of strip-metadata
+        import_meta = not args.get("strip_metadata", False)
+
+        import_resource(data, import_type, import_file, import_id, import_meta)
+
+    # Delete a resource
     if method == "delete":
-        backup_id = args.get("id", None)
+        resource_id = args.get("id", None)
+        resource_type = args.get("type", None)
         delete_db = args.get("delete_db", False)
         confirm = args.get("confirm", False)
-        delete_backup(data, backup_id, delete_db, confirm)
+        delete_resource(data, resource_type, resource_id, confirm, delete_db)
 
     # Import method
     if method == "import":
+        message = "DEPRECATED: Consider using Create or Update instead"
+        log_output(message, True)
         import_type = args.get("type", None)
         import_file = args.get("import-file", None)
         import_id = args.get("id", None)
@@ -690,8 +711,16 @@ def abort_task(data, task_id):
     log_output("Task aborted", True, 200)
 
 
+# Delete wrapper
+def delete_resource(data, resource_type, resource_id, 
+                    confirm=False, delete_db=False):
+    if resource_type == "backup":
+        delete_backup(data, resource_id, confirm, delete_db)
+    elif resource_type == "notification":
+        delete_notification(data, resource_id)
+
 # Call the API to delete a backup
-def delete_backup(data, backup_id, delete_db=False, confirm=False):
+def delete_backup(data, backup_id, confirm=False, delete_db=False):
     verify_token(data)
 
     # Check if the backup exists
@@ -702,7 +731,9 @@ def delete_backup(data, backup_id, delete_db=False, confirm=False):
     if not confirm:
         # Confirm deletion with user
         name = next(iter(result[0]))
-        agree = input('Delete "' + name + '"? (ID:' + str(backup_id) + ') [y/N]:')
+        message = 'Delete "' + name + '"? (ID:' + str(backup_id) + ')'
+        options = '[y/N]:'
+        agree = input(message + ' ' + options)
         if agree not in ["Y", "y", "yes", "YES"]:
             log_output("Backup not deleted", True)
             return
@@ -720,6 +751,26 @@ def delete_backup(data, backup_id, delete_db=False, confirm=False):
         log_output("Error deleting backup", True, r.status_code)
         return
     log_output("Backup deleted", True, 200)
+
+
+# Call the API to delete a notification
+def delete_notification(data, notification_id):
+    verify_token(data)
+
+    url = "/api/v1/notification/"
+    baseurl = create_baseurl(data, url + str(notification_id))
+    cookies = create_cookies(data)
+    headers = create_headers(data)
+
+    r = requests.delete(baseurl, headers=headers, cookies=cookies)
+    check_response(data, r.status_code)
+    if r.status_code == 404:
+        log_output("Notification not found", True, r.status_code)
+        return
+    elif r.status_code != 200:
+        log_output("Error deleting notification", True, r.status_code)
+        return
+    log_output("Notification deleted", True, 200)
 
 
 def update_backup(data, backup_id, backup_config, import_meta=True):
@@ -1333,7 +1384,7 @@ def get_config_location():
     else:
         config_dir = "/.config/duplicati-client/"
 
-    config_file = home + config_dir + "/config.yml"
+    config_file = home + config_dir + "config.yml"
     return config_file
 
 
@@ -1383,7 +1434,7 @@ if __name__ == '__main__':
     parser = ap.ArgumentParser()
 
     # Create subparsers
-    subparsers = parser.add_subparsers(title='commands', metavar="<>", help="")
+    subparsers = parser.add_subparsers(title='commands', metavar="", help="")
 
     # Subparser for the List method
     message = "list all resources of a given type"
@@ -1431,10 +1482,32 @@ if __name__ == '__main__':
     message = "the ID of the task to abort"
     abort_parser.add_argument('id', type=int, help=message)
 
+    # Subparser for the Create method
+    message = "create a resource on the server from a YAMl or JSON file"
+    create_parser = subparsers.add_parser('create', help=message)
+    message = "the type of resource"
+    create_parser.add_argument('type', choices=["backup"], help=message)
+    message = "file containing a job configuration in YAML or JSON format"
+    create_parser.add_argument('import-file', nargs='?', help=message)
+    message = "import the metadata when creating a backup"
+    create_parser.add_argument('--import-metadata', help=message, action='store_true')
+
+    # Subparser for the Update method
+    message = "update a resource on the server from a YAMl or JSON file"
+    update_parser = subparsers.add_parser('update', help=message)
+    message = "the type of resource"
+    update_parser.add_argument('type', choices=["backup"], help=message)
+    message = "the ID of the resource to update"
+    update_parser.add_argument('id', help=message)
+    message = "file containing a job configuration in YAML or JSON format"
+    update_parser.add_argument('import-file', nargs='?', help=message)
+    message = "strip metadata before updating the resource"
+    update_parser.add_argument('--strip-metadata', help=message, action='store_true')
+
     # Subparser for the Delete method
     message = "delete a backup"
     delete_parser = subparsers.add_parser('delete', help=message)
-    choices = ["backup"]
+    choices = ["backup", "notification"]
     message = "the type of resource"
     delete_parser.add_argument('type', choices=choices, help=message)
     message = "the ID of the backup to delete"
@@ -1475,7 +1548,7 @@ if __name__ == '__main__':
     export_parser.add_argument('--output-path', metavar='', help=message)
 
     # Subparser for the Import method
-    message = "import a resource to the server from a YAMl or JSON file"
+    message = "[DEPRECATED] import a resource from a YAMl or JSON file"
     import_parser = subparsers.add_parser('import', help=message)
     message = "the type of resource"
     import_parser.add_argument('type', choices=["backup"], help=message)
