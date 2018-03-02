@@ -115,8 +115,9 @@ def main(**args):
     # Dismiss notifications
     if method == "dismiss":
         resource_id = args.get("id", "all")
-        if not resource_id.isdigit():
-            resource_id = "all"
+        if not resource_id.isdigit() and resource_id != "all":
+            log_output("Invalid id: " + resource_id, True)
+            return
         dismiss_notifications(data, resource_id)
 
     # Show logs
@@ -519,6 +520,8 @@ def backup_filter(json_input):
 
 # Dimiss notifications
 def dismiss_notifications(data, resource_id="all"):
+    verify_token(data)
+
     id_list = []
     if resource_id == "all":
         # Get all notification ID's
