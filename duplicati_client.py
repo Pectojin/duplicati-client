@@ -798,25 +798,26 @@ def update_backup(data, backup_id, backup_config, import_meta=True):
 
 # Login by authenticating against the Duplicati API and extracting a token
 def login(data, input_url=None, password=None):
-    # Split protocol, url, and port if port is provided as CLI argument
-    if input_url is not None:
-        # Begin parsing the input url
-        input_url = input_url.replace("/", "").replace("_", "")
-        count = input_url.count(":")
-        protocol = ""
-        url = ""
-        port = ""
-        if count == 2:
-            protocol, url, port = input_url.split(":")
-        elif count == 1 and input_url.index(":") < 6:
-            protocol, url = input_url.split(":")
-        elif count == 1:
-            url, port = input_url.split(":")
-        elif count == 0:
-            url = input_url
-        else:
-            log_output("Invalid URL", True)
-            sys.exit(2)
+    if input_url is None:
+        input_url = ""
+
+    # Split protocol, url, and port
+    input_url = input_url.replace("/", "").replace("_", "")
+    count = input_url.count(":")
+    protocol = ""
+    url = ""
+    port = ""
+    if count == 2:
+        protocol, url, port = input_url.split(":")
+    elif count == 1 and input_url.index(":") < 6:
+        protocol, url = input_url.split(":")
+    elif count == 1:
+        url, port = input_url.split(":")
+    elif count == 0:
+        url = input_url
+    else:
+        log_output("Invalid URL", True)
+        sys.exit(2)
 
     # Strip nondigits
     port = ''.join(re.findall(r'\d+', port))
@@ -853,7 +854,7 @@ def login(data, input_url=None, password=None):
         r = requests.post(baseurl, data=payload)
         if r.status_code != 200:
             log_output("Error getting salt from server", True, r.status_code)
-            return
+            return False
 
         salt = r.json()["Salt"]
         data["nonce"] = unquote(r.json()["Nonce"])
@@ -880,11 +881,11 @@ def login(data, input_url=None, password=None):
         else:
             message = "Error authenticating against the server"
             log_output(message, True, r.status_code)
-            sys.exit(2)
+            return False
     else:
         message = "Error connecting to server"
         log_output(message, True, r.status_code)
-        return
+        return False
 
     # Update the config file with provided values
     data["token"] = token
@@ -893,7 +894,7 @@ def login(data, input_url=None, password=None):
     data["last_login"] = datetime.datetime.now()
     write_config(data)
     log_output("Login successful", True)
-    return
+    return True
 
 
 # Logout by deleting the token from memory and disk
@@ -1215,10 +1216,17 @@ def verify_token(data):
     expires = expires.replace(tzinfo=tz.tzutc())
     expires = expires.astimezone(tz.tzlocal())
 
-    # Check if token has expired
-    if now > expires:
-        log_output("Token expired", True)
-        sys.exit(2)
+    # Check if token is still valid
+    if now < expires:
+        return
+
+    # Try to log in again
+    log_output("Token expired, trying to log in again", True)
+    if login(data):
+        return
+
+    # Exit if token is invalid and an attempt to login failed
+    sys.exit(2)
 
 
 # Common function for checking API responses for session expiration
@@ -1592,7 +1600,7 @@ if __name__ == '__main__':
     # Subparser for the Login method
     message = "log into a Duplicati server"
     login_parser = subparsers.add_parser('login', help=message)
-    login_parser.add_argument('url')
+    login_parser.add_argument('url', nargs='?')
     message = "password, will prompt if not provided"
     login_parser.add_argument('--password', metavar='', help=message)
     message = "allow insecure HTTPS connections to the server"
