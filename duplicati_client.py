@@ -71,7 +71,8 @@ def main(**args):
 
     # Toggle verbosity
     if method == "verbose":
-        toggle_verbose(data)
+        mode = args.get("mode", None)
+        data = toggle_verbose(data, mode)
 
     # Write verbosity setting to global variable
     verbose = data.get("verbose", False)
@@ -906,12 +907,19 @@ def logout(data):
 
 
 # Toggle verbosity
-def toggle_verbose(data):
-    data["verbose"] = not data.get("verbose", False)
+def toggle_verbose(data, mode=None):
+    if mode == "enable":
+        data["verbose"] = True
+    elif mode == "disable":
+        data["verbose"] = False
+    else:
+        data["verbose"] = not data.get("verbose", False)
+
     write_config(data)
     verbose = data.get("verbose", True)
     message = "verbose mode: " + str(verbose)
     log_output(message, True)
+    return data
 
 
 # Print the status to stdout
@@ -1631,8 +1639,10 @@ if __name__ == '__main__':
     subparsers.add_parser('daemon', help=message)
 
     # Subparser for toggling verbose mode
-    message = "toggle verbose mode"
-    subparsers.add_parser('verbose', help=message)
+    message = "Change between normal and verbose mode"
+    verbose_parser = subparsers.add_parser('verbose', help=message)
+    choices = ["enable", "disable"]
+    verbose_parser.add_argument('mode', nargs='?', choices=choices)
 
     # Subparser for setting a parameter file
     message = "import parameters from a YAML file"
