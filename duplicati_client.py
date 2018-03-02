@@ -112,6 +112,13 @@ def main(**args):
         resource_id = args.get("id", None)
         describe_resource(data, resource_type, resource_id)
 
+    # Dismiss notifications
+    if method == "dismiss":
+        resource_id = args.get("id", "all")
+        if not resource_id.isdigit():
+            resource_id = "all"
+        dismiss_notifications(data, resource_id)
+
     # Show logs
     if method == "logs":
         log_type = args.get("type", None)
@@ -508,6 +515,25 @@ def backup_filter(json_input):
         backup_list.append(key)
 
     return backup_list
+
+
+# Dimiss notifications
+def dismiss_notifications(data, resource_id="all"):
+    id_list = []
+    if resource_id == "all":
+        # Get all notification ID's
+        notifications = fetch_resource_list(data, "notifications")
+        for notification in notifications:
+            id_list.append(notification["ID"])
+    else:
+        id_list.append(resource_id)
+
+    if len(id_list) == 0:
+        log_output("No notifications", True)
+        return
+
+    for item in id_list:
+        delete_resource(data, "notification", item, True)
 
 
 # Fetch logs
@@ -1578,6 +1604,12 @@ if __name__ == '__main__':
     group.add_argument('--import-metadata', help=message, action='store_true')
     message = "strip the metadata before updating a backup"
     group.add_argument('--strip-metadata', help=message, action='store_true')
+
+    # Subparser for the Dismiss method
+    message = "dismiss notifications"
+    dismiss_parser = subparsers.add_parser('dismiss', help=message)
+    message = "dismiss one or all notifications"
+    dismiss_parser.add_argument('id', metavar='{id, all}', help=message)
 
     # Subparser for the Logs method
     message = "display the logs for a given job"
