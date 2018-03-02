@@ -1624,19 +1624,19 @@ if __name__ == '__main__':
     subparsers.add_parser('logout', help=message)
 
     # Subparser for the Status method
-    message = "return information about the current session"
+    message = "print information about the current session"
     subparsers.add_parser('status', help=message)
 
     # Subparser for the Config method
-    message = "prints the config to stdout"
+    message = "print the config"
     config_parser = subparsers.add_parser('config', help=message)
     message = "create a new configuration"
     config_parser.add_argument('--overwrite', action='store_true',
                                help=message)
 
     # Subparser for the Daemon mode
-    message = "run Duplicati Client as a service"
-    subparsers.add_parser('daemon', help=message)
+    # message = "run as a service"
+    # subparsers.add_parser('daemon', help=message)
 
     # Subparser for toggling verbose mode
     message = "Change between normal and verbose mode"
