@@ -6,53 +6,104 @@
 # from requests_wrapper import requests_wrapper as requests
 # use it like the requests library
 import requests
+import urllib3
+
+# Disable invalid SSL warnings when explicitly asking to not check
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 # Dummy return object for when exceptions are thrown
 class Dummy():
     status_code = 503
+    url = ""
 
 
 # Requests wrapper class
 class requests_wrapper():
     def get(baseurl, headers=None, cookies=None,
-            params=None, allow_redirects=True):
+            params=None, allow_redirects=True, verify=True):
         try:
             r = requests.get(baseurl, headers=headers, cookies=cookies,
-                             params=params, allow_redirects=allow_redirects)
+                             params=params, allow_redirects=allow_redirects,
+                             verify=verify)
             return r
+        except requests.exceptions.SSLError:
+            dummy = Dummy()
+            dummy.status_code = 526
+            return dummy
+        except requests.exceptions.ConnectionError:
+            dummy = Dummy()
+            return dummy
+        except OSError:
+            dummy = Dummy()
+            dummy.status_code = 495
+            return dummy
         except Exception:
             dummy = Dummy()
             return dummy
 
-    def delete(baseurl, headers=None, cookies=None,
-               params=None, allow_redirects=True):
+    def delete(baseurl, headers=None, cookies=None, params=None,
+               allow_redirects=True, verify=True):
         try:
             r = requests.delete(baseurl, headers=headers, cookies=cookies,
-                                params=params, allow_redirects=allow_redirects)
+                                params=params, allow_redirects=allow_redirects,
+                                verify=verify)
             return r
+        except requests.exceptions.SSLError:
+            dummy = Dummy()
+            dummy.status_code = 526
+            return dummy
+        except requests.exceptions.ConnectionError:
+            dummy = Dummy()
+            return dummy
+        except OSError:
+            dummy = Dummy()
+            dummy.status_code = 495
+            return dummy
         except Exception:
             dummy = Dummy()
             return dummy
 
     def post(baseurl, headers=None, cookies=None, params=None,
-             data=None, files=None, allow_redirects=True):
+             data=None, files=None, allow_redirects=True, verify=True):
         try:
             r = requests.post(baseurl, headers=headers, cookies=cookies,
                               params=params, data=data, files=files,
-                              allow_redirects=allow_redirects)
+                              allow_redirects=allow_redirects, verify=verify)
             return r
+        except requests.exceptions.SSLError:
+            dummy = Dummy()
+            dummy.status_code = 526
+            return dummy
+        except requests.exceptions.ConnectionError:
+            dummy = Dummy()
+            return dummy
+        except OSError:
+            dummy = Dummy()
+            dummy.status_code = 495
+            return dummy
         except Exception:
             dummy = Dummy()
             return dummy
 
     def put(baseurl, headers=None, cookies=None, params=None,
-            data=None, files=None, allow_redirects=True):
+            data=None, files=None, allow_redirects=True, verify=True):
         try:
             r = requests.put(baseurl, headers=headers, cookies=cookies,
                              params=params, data=data, files=files,
-                             allow_redirects=allow_redirects)
+                             allow_redirects=allow_redirects, verify=verify)
             return r
+        except requests.exceptions.SSLError:
+            dummy = Dummy()
+            dummy.status_code = 526
+            return dummy
+        except requests.exceptions.ConnectionError:
+            dummy = Dummy()
+            return dummy
+        except OSError:
+            dummy = Dummy()
+            dummy.status_code = 495
+            return dummy
         except Exception:
             dummy = Dummy()
             return dummy

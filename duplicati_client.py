@@ -30,6 +30,7 @@ data = {
         "port": "8200",
         "protocol": "http",
         "url": "localhost",
+        "verify": True
     },
     'token': None,
     'token_expires': None,
@@ -48,10 +49,6 @@ def main(**args):
 
     # Detect home dir for config file
     config_file = get_config_location()
-
-    # Use an alternative config file if --config-file is provided
-    if args.get("config_file", False):
-        config_file = args["config_file"]
 
     # Load configuration
     overwrite = args.get("overwrite", False)
@@ -89,7 +86,10 @@ def main(**args):
     if method == "login":
         url = args.get("url", None)
         password = args.get("password", None)
-        data = login(data, url, password)
+        certfile = args.get("certfile", None)
+        insecure = args.get("insecure", False)
+        verify = determine_ssl_validation(data, certfile, insecure)
+        data = login(data, url, password, verify)
 
     # Logout
     if method == "logout":
@@ -229,11 +229,12 @@ def fetch_backup_list(data):
 
 # Fetch all resources of a certain type
 def fetch_resource_list(data, resource):
-    baseurl = create_baseurl(data, "/api/v1/")
+    baseurl = create_baseurl(data, "/api/v1/" + resource)
     log_output("Fetching " + resource + " list from API...", False)
     cookies = create_cookies(data)
     headers = create_headers(data)
-    r = requests.get(baseurl + resource, headers=headers, cookies=cookies)
+    verify = data.get("server", {}).get("verify", True)
+    r = requests.get(baseurl, headers=headers, cookies=cookies, verify=verify)
     check_response(data, r.status_code)
     if r.status_code != 200:
         log_output("Error connecting", True, r.status_code)
@@ -340,8 +341,9 @@ def fetch_notifications(data, notification_ids, method):
     baseurl = create_baseurl(data, "/api/v1/notifications")
     cookies = create_cookies(data)
     headers = create_headers(data)
+    verify = data.get("server", {}).get("verify", True)
     notification_list = []
-    r = requests.get(baseurl, headers=headers, cookies=cookies)
+    r = requests.get(baseurl, headers=headers, cookies=cookies, verify=verify)
     check_response(data, r.status_code)
     if r.status_code != 200:
         id_list = ', '.join(notification_ids)
@@ -394,10 +396,11 @@ def fetch_backups(data, backup_ids, method):
     baseurl = create_baseurl(data, "/api/v1/backup/")
     cookies = create_cookies(data)
     headers = create_headers(data)
+    verify = data.get("server", {}).get("verify", True)
     # Iterate over backup_ids and fetch their info
     for backup_id in backup_ids:
-        r = requests.get(baseurl + str(backup_id),
-                         headers=headers, cookies=cookies)
+        r = requests.get(baseurl + str(backup_id), headers=headers,
+                         cookies=cookies, verify=verify)
         check_response(data, r.status_code)
         if r.status_code != 200:
             message = "Error getting backup " + str(backup_id)
@@ -425,8 +428,9 @@ def fetch_progress_state(data):
     baseurl = create_baseurl(data, "/api/v1/progressstate")
     cookies = create_cookies(data)
     headers = create_headers(data)
+    verify = data.get("server", {}).get("verify", True)
     # Check progress state and get info for the running backup
-    r = requests.get(baseurl, headers=headers, cookies=cookies)
+    r = requests.get(baseurl, headers=headers, cookies=cookies, verify=verify)
     if r.status_code != 200:
         log_output("Error getting progressstate ", False, r.status_code)
         active_id = -1
@@ -575,9 +579,11 @@ def get_backup_logs(data, backup_id, log_type, page_size=5, show_all=False):
     baseurl = create_baseurl(data, endpoint)
     cookies = create_cookies(data)
     headers = create_headers(data)
+    verify = data.get("server", {}).get("verify", True)
     params = {'pagesize': page_size}
 
-    r = requests.get(baseurl, headers=headers, cookies=cookies, params=params)
+    r = requests.get(baseurl, headers=headers, cookies=cookies, params=params,
+                     verify=verify)
     check_response(data, r.status_code)
     if r.status_code == 500:
         log_output("Error getting log, database may be locked by backup", True)
@@ -626,9 +632,11 @@ def get_live_logs(data, level, page_size=5, first_id=0):
     baseurl = create_baseurl(data, "/api/v1/logdata/poll")
     cookies = create_cookies(data)
     headers = create_headers(data)
+    verify = data.get("server", {}).get("verify", True)
     params = {'level': level, 'id': first_id, 'pagesize': page_size}
 
-    r = requests.get(baseurl, headers=headers, cookies=cookies, params=params)
+    r = requests.get(baseurl, headers=headers, cookies=cookies, params=params,
+                     verify=verify)
     check_response(data, r.status_code)
     if r.status_code == 500:
         log_output("Error getting log, database may be locked by backup", True)
@@ -656,9 +664,11 @@ def get_stored_logs(data, page_size=5, show_all=False):
     baseurl = create_baseurl(data, "/api/v1/logdata/log")
     cookies = create_cookies(data)
     headers = create_headers(data)
+    verify = data.get("server", {}).get("verify", True)
     params = {'pagesize': page_size}
 
-    r = requests.get(baseurl, headers=headers, cookies=cookies, params=params)
+    r = requests.get(baseurl, headers=headers, cookies=cookies, params=params,
+                     verify=verify)
     check_response(data, r.status_code)
     if r.status_code == 500:
         log_output("Error getting log, database may be locked by backup", True)
@@ -716,8 +726,8 @@ def run_backup(data, backup_id):
     baseurl = create_baseurl(data, "/api/v1/backup/" + str(backup_id) + "/run")
     cookies = create_cookies(data)
     headers = create_headers(data)
-
-    r = requests.post(baseurl, headers=headers, cookies=cookies)
+    verify = data.get("server", {}).get("verify", True)
+    r = requests.post(baseurl, headers=headers, cookies=cookies, verify=verify)
     check_response(data, r.status_code)
     if r.status_code != 200:
         log_output("Error scheduling backup ", True, r.status_code)
@@ -732,8 +742,8 @@ def abort_task(data, task_id):
     baseurl = create_baseurl(data, "/api/v1/task/" + str(task_id) + "/abort")
     cookies = create_cookies(data)
     headers = create_headers(data)
-
-    r = requests.post(baseurl, headers=headers, cookies=cookies)
+    verify = data.get("server", {}).get("verify", True)
+    r = requests.post(baseurl, headers=headers, cookies=cookies, verify=verify)
     check_response(data, r.status_code)
     if r.status_code != 200:
         log_output("Error aborting task ", True, r.status_code)
@@ -771,11 +781,12 @@ def delete_backup(data, backup_id, confirm=False, delete_db=False):
     baseurl = create_baseurl(data, "/api/v1/backup/" + str(backup_id))
     cookies = create_cookies(data)
     headers = create_headers(data)
+    verify = data.get("server", {}).get("verify", True)
     # We cannot delete remote files because the captcha is graphical
     payload = {'delete-local-db': delete_db, 'delete-remote-files': False}
 
-    r = requests.delete(baseurl, headers=headers,
-                        cookies=cookies, params=payload)
+    r = requests.delete(baseurl, headers=headers, cookies=cookies,
+                        params=payload, verify=verify)
     check_response(data, r.status_code)
     if r.status_code != 200:
         log_output("Error deleting backup", True, r.status_code)
@@ -791,8 +802,9 @@ def delete_notification(data, notification_id):
     baseurl = create_baseurl(data, url + str(notification_id))
     cookies = create_cookies(data)
     headers = create_headers(data)
-
-    r = requests.delete(baseurl, headers=headers, cookies=cookies)
+    verify = data.get("server", {}).get("verify", True)
+    r = requests.delete(baseurl, headers=headers, cookies=cookies,
+                        verify=verify)
     check_response(data, r.status_code)
     if r.status_code == 404:
         log_output("Notification not found", True, r.status_code)
@@ -813,9 +825,10 @@ def update_backup(data, backup_id, backup_config, import_meta=True):
     baseurl = create_baseurl(data, "/api/v1/backup/" + str(backup_id))
     cookies = create_cookies(data)
     headers = create_headers(data)
+    verify = data.get("server", {}).get("verify", True)
     payload = json.dumps(backup_config, default=str)
-    r = requests.put(baseurl, headers=headers,
-                     cookies=cookies, data=payload)
+    r = requests.put(baseurl, headers=headers, cookies=cookies,
+                     data=payload, verify=verify)
     check_response(data, r.status_code)
     if r.status_code == 404:
         log_output("Backup not found", True, r.status_code)
@@ -826,8 +839,19 @@ def update_backup(data, backup_id, backup_config, import_meta=True):
     log_output("Backup updated", True, 200)
 
 
+# Determine if and how we validate SSL
+def determine_ssl_validation(data, certfile=None, insecure=False):
+    if certfile is not None:
+        data["server"]["verify"] = expanduser(certfile)
+    elif insecure:
+        data["server"]["verify"] = False
+    else:
+        data["server"]["verify"] = True
+    write_config(data)
+    return data["server"]["verify"]
+
 # Login by authenticating against the Duplicati API and extracting a token
-def login(data, input_url=None, password=None):
+def login(data, input_url=None, password=None, verify=True):
     if input_url is None:
         input_url = ""
 
@@ -864,15 +888,24 @@ def login(data, input_url=None, password=None):
     data["server"]["protocol"] = protocol
     data["server"]["url"] = url
     data["server"]["port"] = port
+
     # Make the login attempt
     baseurl = create_baseurl(data, "")
     log_output("Connecting to " + baseurl + "...", False)
-    r = requests.get(baseurl, allow_redirects=False)
+    r = requests.get(baseurl, allow_redirects=True, verify=verify)
     check_response(data, r.status_code)
-    if r.status_code == 200:
+
+    # Detect if we were prompted to login
+    login_redirect = "/login.html" in r.url
+    # Detect if we were redirected to https
+    if "https://" in r.url and protocol != "https":
+        data["server"]["protocol"] = "https"
+        log_output("Redirected from http to https", True)
+
+    if r.status_code == 200 and not login_redirect:
         log_output("OK", False, r.status_code)
         token = unquote(r.cookies["xsrf-token"])
-    elif r.status_code == 302:
+    elif r.status_code == 200 and login_redirect:
         # Get password by prompting user if no password was given in-line
         if password is None:
             log_output("Authentication required", False, r.status_code)
@@ -881,7 +914,7 @@ def login(data, input_url=None, password=None):
         log_output("Getting nonce and salt...", False)
         baseurl = create_baseurl(data, "/login.cgi")
         payload = {'get-nonce': 1}
-        r = requests.post(baseurl, data=payload)
+        r = requests.post(baseurl, data=payload, verify=verify)
         if r.status_code != 200:
             log_output("Error getting salt from server", True, r.status_code)
             return False
@@ -903,7 +936,7 @@ def login(data, input_url=None, password=None):
             "xsrf-token": token,
             "session-nonce": data.get("nonce", "")
         }
-        r = requests.post(baseurl, data=payload, cookies=cookies)
+        r = requests.post(baseurl, data=payload, cookies=cookies, verify=verify)
         check_response(data, r.status_code)
         if r.status_code == 200:
             log_output("Connected", False, r.status_code)
@@ -1169,7 +1202,9 @@ def import_backup(data, import_file, backup_id=None, import_meta=None):
     }
     cookies = create_cookies(data)
     baseurl = create_baseurl(data, "/api/v1/backups/import", True)
-    r = requests.post(baseurl, files=files, cookies=cookies, data=payload)
+    verify = data.get("server", {}).get("verify", True)
+    r = requests.post(baseurl, files=files, cookies=cookies, data=payload,
+                      verify=verify)
     check_response(data, r.status_code)
     if r.status_code != 200:
         log_output("Error importing backup configuration", True, r.status_code)
@@ -1259,7 +1294,10 @@ def verify_token(data):
 
     # Try to log in again
     log_output("Token expired, trying to log in again", True)
-    if login(data):
+    verify = data.get("server", {}).get("verify", True)
+    args = load_parameters(data, {})
+    password = args.get("password", None)
+    if login(data, password=password, verify=verify):
         return
 
     # Exit if token is invalid and an attempt to login failed
@@ -1270,8 +1308,20 @@ def verify_token(data):
 def check_response(data, status_code):
     # Exit if session expired
     if status_code == 400:
-        message = "Session expired. Please login again"
+        log_output("The server refused the request, please try logging in again", True)
+        sys.exit(2)
+
+    if status_code == 526:
+        message = "Server certificate could not be validated. "
         log_output(message, True, status_code)
+        message = "You can specify a certificate with --certfile "
+        message += "or explicitly ignore this error with --insecure"
+        log_output(message, True)
+        sys.exit(2)
+
+    if status_code == 495:
+        message = "Provided certificate is invalid or does not match the server certificate"
+        log_output(message, True)
         sys.exit(2)
 
     if status_code == 503:
@@ -1328,7 +1378,10 @@ def create_headers(data):
 def create_baseurl(data, additional_path, append_token=False):
     protocol = data["server"]["protocol"]
     url = data["server"]["url"]
-    port = data["server"]["port"]
+    if protocol != "https":
+        port = data["server"]["port"]
+    else:
+        port = ""
     baseurl = protocol + "://" + url + ":" + port + additional_path
     if append_token is True:
         baseurl += "?x-xsrf-token=" + quote(data.get("token", ''))
@@ -1644,15 +1697,12 @@ if __name__ == '__main__':
     message = "log into a Duplicati server"
     login_parser = subparsers.add_parser('login', help=message)
     login_parser.add_argument('url', nargs='?')
-    message = "password, will prompt if not provided"
+    message = "provide a password inline instead of interactively"
     login_parser.add_argument('--password', metavar='', help=message)
     message = "allow insecure HTTPS connections to the server"
     login_parser.add_argument('--insecure', action='store_true', help=message)
     message = "specify the path to certificate to be used for validation"
     login_parser.add_argument('--certfile', metavar='', help=message)
-    message = "specify a non-standard configuration file"
-    login_parser.add_argument('--config-file', help=message,
-                              metavar='', action='store')
 
     # Subparser for the Logout method
     message = "end the current server session"
