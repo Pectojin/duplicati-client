@@ -16,7 +16,7 @@ A client daemon mode will be available eventually, allowing to periodically pull
    * [Supported commands](#supported-commands)
    * [Parameters file](#parameters-file)
    * [Export backups](#export-backups)
-   * [Import backups](#import-backups)
+   * [Create and update backups](#create-and-update-backups)
    * [Daemon mode](#daemon-mode)
    * [Task server API specification](#task-server-api-specification)
 <!--te-->
@@ -144,20 +144,20 @@ By default the client will export YAML, but you can manually specify either with
 
 The resulting file can then be used to create new backup jobs with the import command. Notice that the JSON output is identical to exporting from the Duplicati Web UI, so if you need interoperability use JSON. The YAML file is only understood by this client for now.
 
-# Import backups
-The import command enables creating new backup configurations from a configuration file. Use either a JSON file exported from the Duplicati Web UI or a YAML/JSON file exported from this client. Input files are automatically converted into the JSON format that the Duplicati server requires, so it does not matter which format you import from.
+# Create and update backups
+The Create command allows creating backup jobs from a configuration file. Either a JSON file, as exported from the Duplicati Web UI, or a YAML/JSON file exported from this client. Input files are automatically converted into the JSON format that the Duplicati server requires, so it does not matter which format you import from.
 
-    duc import backup [path_to_file]
+    duc create backup [path_to_file]
 
 By default metadata will not be imported, but if you'd like to retain the metadata use `--import-metadata`
 
-You can also import the configuration over an existing job to update the job. Simply use the `--id` parameter to update a backup configuration.
+The Update command allows updating an existing job from a configuration file.
 
-    duc import backup [path_to_file] --id=<backup_id>
+    duc update backup [backup_id] [path_to_file]
 
 Duplicati does not currently allow to update a backup configuration without also overwriting the metadata. If your config file was exported a long time ago with old metadata you may not be interested in this. 
 
-Apply the `--strip-metadata` option to remove the metadata before updating the backup config. This way the metadata will not be displayed until the backup job has had a chance to run and provide the correct metadata.
+Apply the `--strip-metadata` option to remove the metadata before updating the backup config. This way no metadata will be displayed until the backup job has had a chance to run and provide the correct metadata.
 
 Encrypted configuration files are currently not supported.
 
