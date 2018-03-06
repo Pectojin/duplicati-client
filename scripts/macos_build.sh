@@ -43,7 +43,7 @@ cp ../dist/duplicati_client $dir_name
 cd $dir_name
 # Add source to release folder
 mkdir "source"
-cp ../../../duplicati_client.py source
+cp ../../../*.py source
 
 # Add requirements.txt
 cp ../../../requirements.txt source
