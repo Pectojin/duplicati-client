@@ -1,5 +1,38 @@
 # Duplicati client
-Version 0.1.26 alpha
+Version 0.2.15 beta
+
+## 0.2.15 beta (c5a437e)
+Updated config file path to be canonical on Windows (`%APPDATA%/Local/DuplicatiClient`) and Linux (`~/.config/duplicati-client`).
+
+Added support for connecting to server over HTTPS. Implemented logic and error handling for invalid certificates along with `--insecure` and `--certfile` options to allow using private or self signed certificates.
+
+Added user confirmation step when deleting backup jobs.
+
+Added validation step to check if backup exists before trying to delete it.
+
+Updated the Verbose command to support explicitly declaring `enable` or `disable` instead of only allowing toggling.
+
+Changed from verbose mode to nonverbose mode on default.
+
+Added success message on successful login.
+
+Updated the filter on `list serversettings` to make it more readable.
+
+Fixed a problem with login not exiting after failing to authenticate.
+
+Added Create and Update commands to be used in place of the Import command. The Import command will be deprecated due to it's confusing syntax.
+
+Updated the Delete command to allow deleting notifications as well as backup jobs.
+
+Added a Dismiss command as a shortcut for deleting notifications and as a way to dismiss all notifications at once.
+
+Updated all commands to attempt logging in again if they're called with an expired token.
+
+Improved robustness of the Login command.
+
+Updated the Login command to allow defaulting to last provided URL when no URL is provided.
+
+Added script for packaging a general Python release.
 
 ## 0.1.26 alpha (76075a8)
 Improved error handling when attempting to connect to a server that does not respond

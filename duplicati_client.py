@@ -20,7 +20,7 @@ from os.path import splitext
 from requests_wrapper import requests_wrapper as requests
 
 # Default values
-application_version = "0.1.26"
+application_version = "0.2.15"
 config_file = "config.yml"
 verbose = False
 data = {
