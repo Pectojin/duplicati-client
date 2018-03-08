@@ -89,7 +89,8 @@ def main(**args):
         certfile = args.get("certfile", None)
         insecure = args.get("insecure", False)
         verify = determine_ssl_validation(data, certfile, insecure)
-        data = login(data, url, password, verify)
+        interactive = args.get("script", True)
+        data = login(data, url, password, verify, interactive)
 
     # Logout
     if method == "logout":
@@ -850,8 +851,9 @@ def determine_ssl_validation(data, certfile=None, insecure=False):
     write_config(data)
     return data["server"]["verify"]
 
+
 # Login by authenticating against the Duplicati API and extracting a token
-def login(data, input_url=None, password=None, verify=True):
+def login(data, input_url=None, password=None, verify=True, interactive=True):
     if input_url is None:
         input_url = ""
 
@@ -907,9 +909,12 @@ def login(data, input_url=None, password=None, verify=True):
         token = unquote(r.cookies["xsrf-token"])
     elif r.status_code == 200 and login_redirect:
         # Get password by prompting user if no password was given in-line
-        if password is None:
+        if password is None and interactive:
             log_output("Authentication required", False, r.status_code)
             password = getpass.getpass('Password:')
+        elif password is None and not interactive:
+            log_output("A password is required required", True)
+            sys.exit(2)
 
         log_output("Getting nonce and salt...", False)
         baseurl = create_baseurl(data, "/login.cgi")
@@ -917,7 +922,7 @@ def login(data, input_url=None, password=None, verify=True):
         r = requests.post(baseurl, data=payload, verify=verify)
         if r.status_code != 200:
             log_output("Error getting salt from server", True, r.status_code)
-            return False
+            sys.exit(2)
 
         salt = r.json()["Salt"]
         data["nonce"] = unquote(r.json()["Nonce"])
@@ -936,7 +941,8 @@ def login(data, input_url=None, password=None, verify=True):
             "xsrf-token": token,
             "session-nonce": data.get("nonce", "")
         }
-        r = requests.post(baseurl, data=payload, cookies=cookies, verify=verify)
+        r = requests.post(baseurl, data=payload,
+                          cookies=cookies, verify=verify)
         check_response(data, r.status_code)
         if r.status_code == 200:
             log_output("Connected", False, r.status_code)
@@ -944,11 +950,11 @@ def login(data, input_url=None, password=None, verify=True):
         else:
             message = "Error authenticating against the server"
             log_output(message, True, r.status_code)
-            return False
+            sys.exit(2)
     else:
         message = "Error connecting to server"
         log_output(message, True, r.status_code)
-        return False
+        sys.exit(2)
 
     # Update the config file with provided values
     data["token"] = token
@@ -1308,7 +1314,9 @@ def verify_token(data):
 def check_response(data, status_code):
     # Exit if session expired
     if status_code == 400:
-        log_output("The server refused the request, please try logging in again", True)
+        message = "The server refused the request, "
+        message += "you may need to login again"
+        log_output(message, True)
         sys.exit(2)
 
     if status_code == 526:
@@ -1320,7 +1328,8 @@ def check_response(data, status_code):
         sys.exit(2)
 
     if status_code == 495:
-        message = "Provided certificate is invalid or does not match the server certificate"
+        message = "Provided certificate is invalid or "
+        message += "does not match the server certificate"
         log_output(message, True)
         sys.exit(2)
 
@@ -1703,6 +1712,9 @@ if __name__ == '__main__':
     login_parser.add_argument('--insecure', action='store_true', help=message)
     message = "specify the path to certificate to be used for validation"
     login_parser.add_argument('--certfile', metavar='', help=message)
+    message = "noninteractive mode for use in scripts"
+    login_parser.add_argument('--script', action='store_false', help=message)
+    
 
     # Subparser for the Logout method
     message = "end the current server session"
