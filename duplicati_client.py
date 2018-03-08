@@ -1421,11 +1421,15 @@ def format_time(time_string, precise=False):
     # Now for comparison
     now = datetime.datetime.now()
 
-    # Take care of timezones
-    now = now.replace(tzinfo=tz.tzutc())
-    now = now.astimezone(tz.tzlocal())
-    datetime_object = datetime_object.replace(tzinfo=tz.tzutc())
-    datetime_object = datetime_object.astimezone(tz.tzlocal())
+    try:
+        # Take care of timezones
+        now = now.replace(tzinfo=tz.tzutc())
+        now = now.astimezone(tz.tzlocal())
+        datetime_object = datetime_object.replace(tzinfo=tz.tzutc())
+        datetime_object = datetime_object.astimezone(tz.tzlocal())
+    except Exception as exc:
+        log_output(exc, False)
+        return None
 
     # Get the delta
     if (datetime_object > now):
