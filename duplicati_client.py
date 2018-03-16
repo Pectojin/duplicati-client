@@ -1212,6 +1212,18 @@ def import_backup(data, import_file, backup_id=None, import_meta=None):
     r = requests.post(baseurl, files=files, cookies=cookies, data=payload,
                       verify=verify)
     check_response(data, r.status_code)
+    # Code for extracting error messages posted with inline javascript
+    # and with 200 OK http status code, preventing us from detecting
+    # the error otherwise.
+    try:
+        text = r.text
+        start = text.index("if (rp) { rp('")+14
+        end = text.index(", line ")
+        error = text[start:end].replace("\\'", "'") + "."
+        log_output(error, True)
+        sys.exit(2)
+    except ValueError:
+        pass
     if r.status_code != 200:
         log_output("Error importing backup configuration", True, r.status_code)
         sys.exit(2)
