@@ -480,7 +480,7 @@ def backup_filter(json_input):
         speed = progress_state.get("BackendSpeed", 0)
         progress = {
             "State": state,
-            "Counting": progress_state.get("StillCounting", False),
+            "Counting files": progress_state.get("StillCounting", False),
             "Backend": {
                 "Action": progress_state.get("BackendAction", 0)
             },
@@ -491,7 +491,7 @@ def backup_filter(json_input):
 
         # Display item only if relevant
         if not progress_state.get("StillCounting", False):
-            progress.pop("Counting")
+            progress.pop("Counting files")
         # Avoid 0 division
         file_count = progress_state.get("ProcessedFileCount", 0)
         total_file_count = progress_state.get("TotalFileCount", 0)
@@ -499,6 +499,17 @@ def backup_filter(json_input):
         if file_count > 0 and total_file_count > 0 and processing:
             processed = "{0:.2f}".format(file_count / total_file_count * 100)
             progress["Processed files"] = processed + "%"
+        # Avoid 0 division
+        data_size = progress_state.get("ProcessedFileSize", 0)
+        total_data_size = progress_state.get("TotalFileSize", 0)
+        processing = state == "Backup_ProcessingFiles"
+        if data_size > 0 and total_data_size > 0 and processing:
+            # Calculate percentage
+            processed = "{0:.2f}".format(data_size / total_data_size * 100)
+            # Format text "x% (y GB of z GB)"
+            processed += "% (" + str(helper.format_bytes(data_size)) + " of "
+            processed += str(helper.format_bytes(total_data_size)) + ")"
+            progress["Processed data"] = processed
         # Avoid 0 division
         current = progress_state.get("BackendFileProgress", 0)
         total = progress_state.get("BackendFileSize", 0)
