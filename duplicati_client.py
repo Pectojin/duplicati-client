@@ -1,54 +1,48 @@
 #!/usr/bin/env python3
-import argparse as ap
-import base64
-import datetime
-import getpass
-import hashlib
+import parser as ArgumentParser
+import config
 import json
 import os.path
-import platform
-import re
 import sys
+import datetime
 import time
-import urllib
 import yaml
+import compatibility
+import common
+import auth
+import helper
 
-from dateutil import parser as dateparser
-from dateutil import tz
 from os.path import expanduser
 from os.path import splitext
 from requests_wrapper import requests_wrapper as requests
-
-# Default values
-application_version = "0.2.15"
-config_file = "config.yml"
-verbose = False
-data = {
-    "last_login": None,
-    "parameters_file": None,
-    "server": {
-        "port": "8200",
-        "protocol": "http",
-        "url": "localhost",
-        "verify": True
-    },
-    'token': None,
-    'token_expires': None,
-    'verbose': False
-}
 
 
 def main(**args):
     # Command method
     method = sys.argv[1]
 
+    if method == "version":
+        message = "Duplicati client version "
+        message += config.APPLICATION_VERSION
+        return common.log_output(message, True)
+
     # Default values
-    global verbose
-    global config_file
-    global data
+    data = {
+        "last_login": None,
+        "parameters_file": None,
+        "server": {
+            "port": "8200",
+            "protocol": "http",
+            "url": "localhost",
+            "verify": True
+        },
+        'token': None,
+        'token_expires': None,
+        'verbose': False
+    }
 
     # Detect home dir for config file
-    config_file = get_config_location()
+    config.CONFIG_FILE = compatibility.get_config_location()
 
     # Load configuration
     overwrite = args.get("overwrite", False)
@@ -60,7 +54,7 @@ def main(**args):
         data = set_parameters_file(data, args, param_file)
 
     # Load parameters file
-    args = load_parameters(data, args)
+    args = common.load_parameters(data, args)
 
     # Show parameters
     if method == "params" and (args.get("show", False) or param_file is None):
@@ -71,8 +65,8 @@ def main(**args):
         mode = args.get("mode", None)
         data = toggle_verbose(data, mode)
 
-    # Write verbosity setting to global variable
-    verbose = data.get("verbose", False)
+    # Write verbosity setting to config variable
+    config.VERBOSE = data.get("verbose", False)
 
     # Display the config if requested
     if method == "config":
@@ -90,11 +84,11 @@ def main(**args):
         insecure = args.get("insecure", False)
         verify = determine_ssl_validation(data, certfile, insecure)
         interactive = args.get("script", True)
-        data = login(data, url, password, verify, interactive)
+        data = auth.login(data, url, password, verify, interactive)
 
     # Logout
     if method == "logout":
-        data = logout(data)
+        data = auth.logout(data)
 
     # List resources
     if method == "list":
@@ -117,7 +111,7 @@ def main(**args):
     if method == "dismiss":
         resource_id = args.get("id", "all")
         if not resource_id.isdigit() and resource_id != "all":
-            log_output("Invalid id: " + resource_id, True)
+            common.log_output("Invalid id: " + resource_id, True)
             return
         dismiss_notifications(data, resource_id)
 
@@ -170,7 +164,7 @@ def main(**args):
     # Import method
     if method == "import":
         message = "DEPRECATED: Consider using Create or Update instead"
-        log_output(message, True)
+        common.log_output(message, True)
         import_type = args.get("type", None)
         import_file = args.get("import-file", None)
         import_id = args.get("id", None)
@@ -193,7 +187,7 @@ def main(**args):
 
 # Function for display a list of resources
 def list_resources(data, resource):
-    verify_token(data)
+    common.verify_token(data)
 
     if resource == "backups":
         resource_list = fetch_backup_list(data)
@@ -203,12 +197,12 @@ def list_resources(data, resource):
     resource_list = list_filter(resource_list, resource)
 
     if len(resource_list) == 0:
-        log_output("No items found", True)
+        common.log_output("No items found", True)
         sys.exit(2)
 
     # Must use safe_dump for python 2 compatibility
     message = yaml.safe_dump(resource_list, default_flow_style=False)
-    log_output(message, True, 200)
+    common.log_output(message, True, 200)
 
 
 # Fetch all backups
@@ -230,15 +224,15 @@ def fetch_backup_list(data):
 
 # Fetch all resources of a certain type
 def fetch_resource_list(data, resource):
-    baseurl = create_baseurl(data, "/api/v1/" + resource)
-    log_output("Fetching " + resource + " list from API...", False)
-    cookies = create_cookies(data)
-    headers = create_headers(data)
+    baseurl = common.create_baseurl(data, "/api/v1/" + resource)
+    common.log_output("Fetching " + resource + " list from API...", False)
+    cookies = common.create_cookies(data)
+    headers = common.create_headers(data)
     verify = data.get("server", {}).get("verify", True)
     r = requests.get(baseurl, headers=headers, cookies=cookies, verify=verify)
-    check_response(data, r.status_code)
+    common.check_response(data, r.status_code)
     if r.status_code != 200:
-        log_output("Error connecting", True, r.status_code)
+        common.log_output("Error connecting", True, r.status_code)
         sys.exit(2)
     else:
         return r.json()
@@ -264,11 +258,11 @@ def list_filter(json_input, resource):
                 backup[backup_name]["Source size"] = size
 
             if schedule is not None:
-                next_run = format_time(schedule.get("Time", ""))
+                next_run = helper.format_time(schedule.get("Time", ""))
                 if next_run is not None:
                     backup[backup_name]["Next run"] = next_run
 
-                last_run = format_time(schedule.get("LastRun", ""))
+                last_run = helper.format_time(schedule.get("LastRun", ""))
                 if last_run is not None:
                     backup[backup_name]["Last run"] = last_run
 
@@ -288,7 +282,7 @@ def list_filter(json_input, resource):
                     "Notification ID": val.get("ID", ""),
                 }
             }
-            timestamp = format_time(val.get("Timestamp", ""))
+            timestamp = helper.format_time(val.get("Timestamp", ""))
             if timestamp is not None:
                 notification["Timestamp"] = timestamp
 
@@ -319,37 +313,37 @@ def get_resources(data, resource_type, resource_id):
         result = fetch_notifications(data, resource_id, "get")
 
     message = yaml.safe_dump(result, default_flow_style=False)
-    log_output(message, True, 200)
+    common.log_output(message, True, 200)
 
 
 # Get one resource with all fields
 def describe_resource(data, resource_type, resource_id):
     if resource_type == "backup":
         result = fetch_backups(data, [resource_id], "describe")
-        # Must use safe_dump for python 2 compatibility
     elif resource_type == "notification":
         result = fetch_notifications(data, [resource_id], "describe")
 
+    # Must use safe_dump for python 2 compatibility
     message = yaml.safe_dump(result, default_flow_style=False)
-    log_output(message, True, 200)
+    common.log_output(message, True, 200)
 
 
 # Fetch notifications
 def fetch_notifications(data, notification_ids, method):
-    verify_token(data)
+    common.verify_token(data)
 
-    log_output("Fetching notifications from API...", False)
-    baseurl = create_baseurl(data, "/api/v1/notifications")
-    cookies = create_cookies(data)
-    headers = create_headers(data)
+    common.log_output("Fetching notifications from API...", False)
+    baseurl = common.create_baseurl(data, "/api/v1/notifications")
+    cookies = common.create_cookies(data)
+    headers = common.create_headers(data)
     verify = data.get("server", {}).get("verify", True)
     notification_list = []
     r = requests.get(baseurl, headers=headers, cookies=cookies, verify=verify)
-    check_response(data, r.status_code)
+    common.check_response(data, r.status_code)
     if r.status_code != 200:
         id_list = ', '.join(notification_ids)
         message = "Error getting notifications " + id_list
-        log_output(message, True, r.status_code)
+        common.log_output(message, True, r.status_code)
     else:
         data = r.json()
 
@@ -378,7 +372,7 @@ def notification_filter(json_input):
                 "Type": key.get("Type", ""),
             }
         }
-        timestamp = format_time(key.get("Timestamp", ""))
+        timestamp = helper.format_time(key.get("Timestamp", ""))
         if timestamp is not None:
             notification[title]["Timestamp"] = timestamp
 
@@ -389,23 +383,23 @@ def notification_filter(json_input):
 
 # Fetch backups
 def fetch_backups(data, backup_ids, method):
-    verify_token(data)
+    common.verify_token(data)
 
-    log_output("Fetching backups from API...", False)
+    common.log_output("Fetching backups from API...", False)
     progress_state, active_id = fetch_progress_state(data)
     backup_list = []
-    baseurl = create_baseurl(data, "/api/v1/backup/")
-    cookies = create_cookies(data)
-    headers = create_headers(data)
+    baseurl = common.create_baseurl(data, "/api/v1/backup/")
+    cookies = common.create_cookies(data)
+    headers = common.create_headers(data)
     verify = data.get("server", {}).get("verify", True)
     # Iterate over backup_ids and fetch their info
     for backup_id in backup_ids:
         r = requests.get(baseurl + str(backup_id), headers=headers,
                          cookies=cookies, verify=verify)
-        check_response(data, r.status_code)
+        common.check_response(data, r.status_code)
         if r.status_code != 200:
             message = "Error getting backup " + str(backup_id)
-            log_output(message, True, r.status_code)
+            common.log_output(message, True, r.status_code)
             continue
         data = r.json()["data"]
 
@@ -426,14 +420,14 @@ def fetch_backups(data, backup_ids, method):
 
 # Fetch backup progress state
 def fetch_progress_state(data):
-    baseurl = create_baseurl(data, "/api/v1/progressstate")
-    cookies = create_cookies(data)
-    headers = create_headers(data)
+    baseurl = common.create_baseurl(data, "/api/v1/progressstate")
+    cookies = common.create_cookies(data)
+    headers = common.create_headers(data)
     verify = data.get("server", {}).get("verify", True)
     # Check progress state and get info for the running backup
     r = requests.get(baseurl, headers=headers, cookies=cookies, verify=verify)
     if r.status_code != 200:
-        log_output("Error getting progressstate ", False, r.status_code)
+        common.log_output("Error getting progressstate ", False, r.status_code)
         active_id = -1
         progress_state = {}
     else:
@@ -456,9 +450,12 @@ def backup_filter(json_input):
         }
         backup["Versions"] = int(metadata.get("BackupListCount", 0))
         backup["Last run"] = {
-            "Duration": format_duration(metadata.get("LastDuration", "0")),
-            "Started": format_time(metadata.get("LastStarted", "0")),
-            "Stopped": format_time(metadata.get("LastFinished", "0")),
+            "Duration":
+            helper.format_duration(metadata.get("LastDuration", "0")),
+            "Started":
+            helper.format_time(metadata.get("LastStarted", "0")),
+            "Stopped":
+            helper.format_time(metadata.get("LastFinished", "0")),
         }
         backup["Size"] = {
             "Local": metadata.get("SourceSizeString", ""),
@@ -467,10 +464,10 @@ def backup_filter(json_input):
 
         schedule = key.get("Schedule", None)
         if schedule is not None:
-            next_run = format_time(schedule.pop("Time", ""))
+            next_run = helper.format_time(schedule.pop("Time", ""))
             if next_run is not None:
                 schedule["Next run"] = next_run
-            last_run = format_time(schedule.pop("LastRun", ""))
+            last_run = helper.format_time(schedule.pop("LastRun", ""))
             if last_run is not None:
                 schedule["Last run"] = last_run
             schedule.pop("AllowedDays", None)
@@ -490,7 +487,7 @@ def backup_filter(json_input):
             "Task ID": progress_state.get("TaskID", -1),
         }
         if speed > 0:
-            progress["Backend"]["Speed"] = bytes_2_human_readable(speed) + "/s"
+            progress["Backend"]["Speed"] = helper.format_bytes(speed) + "/s"
 
         # Display item only if relevant
         if not progress_state.get("StillCounting", False):
@@ -525,7 +522,7 @@ def backup_filter(json_input):
 
 # Dimiss notifications
 def dismiss_notifications(data, resource_id="all"):
-    verify_token(data)
+    common.verify_token(data)
 
     id_list = []
     if resource_id == "all":
@@ -537,7 +534,7 @@ def dismiss_notifications(data, resource_id="all"):
         id_list.append(resource_id)
 
     if len(id_list) == 0:
-        log_output("No notifications", True)
+        common.log_output("No notifications", True)
         return
 
     for item in id_list:
@@ -547,10 +544,10 @@ def dismiss_notifications(data, resource_id="all"):
 # Fetch logs
 def get_logs(data, log_type, backup_id, remote=False,
              follow=False, lines=10, show_all=False):
-        verify_token(data)
+        common.verify_token(data)
 
         if log_type == "backup" and backup_id is None:
-            log_output("A backup id must be provided with --id", True)
+            common.log_output("A backup id must be provided with --id", True)
             sys.exit(2)
 
         # Treating functions as objects to allow any function to be "followed"
@@ -577,20 +574,22 @@ def get_logs(data, log_type, backup_id, remote=False,
 # Get local and remote backup logs
 def get_backup_logs(data, backup_id, log_type, page_size=5, show_all=False):
     endpoint = "/api/v1/backup/" + str(backup_id) + "/" + log_type
-    baseurl = create_baseurl(data, endpoint)
-    cookies = create_cookies(data)
-    headers = create_headers(data)
+    baseurl = common.create_baseurl(data, endpoint)
+    cookies = common.create_cookies(data)
+    headers = common.create_headers(data)
     verify = data.get("server", {}).get("verify", True)
     params = {'pagesize': page_size}
 
     r = requests.get(baseurl, headers=headers, cookies=cookies, params=params,
                      verify=verify)
-    check_response(data, r.status_code)
+    common.check_response(data, r.status_code)
     if r.status_code == 500:
-        log_output("Error getting log, database may be locked by backup", True)
+        message = "Error getting log, "
+        message += "database may be locked by backup"
+        common.log_output(message, True)
         return
     elif r.status_code != 200:
-        log_output("Error getting log", True, r.status_code)
+        common.log_output("Error getting log", True, r.status_code)
         return
 
     result = r.json()[-page_size:]
@@ -600,7 +599,7 @@ def get_backup_logs(data, backup_id, log_type, page_size=5, show_all=False):
             log["Data"] = "Expunged"
         else:
             log["Data"] = json.loads(log.get("Data", "{}"))
-            size = bytes_2_human_readable(log["Data"].get("Size", 0))
+            size = helper.format_bytes(log["Data"].get("Size", 0))
             log["Data"]["Size"] = size
 
         if log.get("Message", None) is not None:
@@ -625,57 +624,61 @@ def get_backup_logs(data, backup_id, log_type, page_size=5, show_all=False):
         ).strftime("%I:%M:%S %p %d/%m/%Y")
         logs.append(log)
     message = yaml.safe_dump(logs, default_flow_style=False)
-    log_output(message, True)
+    common.log_output(message, True)
 
 
 # Get live logs
 def get_live_logs(data, level, page_size=5, first_id=0):
-    baseurl = create_baseurl(data, "/api/v1/logdata/poll")
-    cookies = create_cookies(data)
-    headers = create_headers(data)
+    baseurl = common.create_baseurl(data, "/api/v1/logdata/poll")
+    cookies = common.create_cookies(data)
+    headers = common.create_headers(data)
     verify = data.get("server", {}).get("verify", True)
     params = {'level': level, 'id': first_id, 'pagesize': page_size}
 
     r = requests.get(baseurl, headers=headers, cookies=cookies, params=params,
                      verify=verify)
-    check_response(data, r.status_code)
+    common.check_response(data, r.status_code)
     if r.status_code == 500:
-        log_output("Error getting log, database may be locked by backup", True)
+        message = "Error getting log, "
+        message += "database may be locked by backup"
+        common.log_output(message, True)
         return
     elif r.status_code != 200:
-        log_output("Error getting log", True, r.status_code)
+        common.log_output("Error getting log", True, r.status_code)
         return
 
     result = r.json()[-page_size:]
     logs = []
     for log in result:
-        log["When"] = format_time(log.get("When", ""), True)
+        log["When"] = helper.format_time(log.get("When", ""), True)
         logs.append(log)
 
     if len(logs) == 0:
-        log_output("No log entries found", True)
+        common.log_output("No log entries found", True)
         return
 
     message = yaml.safe_dump(logs, default_flow_style=False)
-    log_output(message, True)
+    common.log_output(message, True)
 
 
 # Get stored logs
 def get_stored_logs(data, page_size=5, show_all=False):
-    baseurl = create_baseurl(data, "/api/v1/logdata/log")
-    cookies = create_cookies(data)
-    headers = create_headers(data)
+    baseurl = common.create_baseurl(data, "/api/v1/logdata/log")
+    cookies = common.create_cookies(data)
+    headers = common.create_headers(data)
     verify = data.get("server", {}).get("verify", True)
     params = {'pagesize': page_size}
 
     r = requests.get(baseurl, headers=headers, cookies=cookies, params=params,
                      verify=verify)
-    check_response(data, r.status_code)
+    common.check_response(data, r.status_code)
     if r.status_code == 500:
-        log_output("Error getting log, database may be locked by backup", True)
+        message = "Error getting log, "
+        message += "database may be locked by backup"
+        common.log_output(message, True)
         return
     elif r.status_code != 200:
-        log_output("Error getting log", True, r.status_code)
+        common.log_output("Error getting log", True, r.status_code)
         return
 
     result = r.json()[-page_size:]
@@ -700,21 +703,22 @@ def get_stored_logs(data, page_size=5, show_all=False):
         logs.append(log)
 
     if len(logs) == 0:
-        log_output("No log entries found", True)
+        common.log_output("No log entries found", True)
         return
 
     message = yaml.safe_dump(logs, default_flow_style=False)
-    log_output(message, True)
+    common.log_output(message, True)
 
 
 # Repeatedly call other functions until interrupted
 def follow_function(function, interval=5):
     try:
         while True:
-            clear_prompt()
+            compatibility.clear_prompt()
             function()
-            log_output(format_time(datetime.datetime.now(), True), True)
-            log_output("Press control+C to quit", True)
+            timestamp = helper.format_time(datetime.datetime.now(), True)
+            common.log_output(timestamp, True)
+            common.log_output("Press control+C to quit", True)
             time.sleep(interval)
     except KeyboardInterrupt:
         return
@@ -722,47 +726,50 @@ def follow_function(function, interval=5):
 
 # Call the API to schedule a backup run next
 def run_backup(data, backup_id):
-    verify_token(data)
+    common.verify_token(data)
 
-    baseurl = create_baseurl(data, "/api/v1/backup/" + str(backup_id) + "/run")
-    cookies = create_cookies(data)
-    headers = create_headers(data)
+    path = "/api/v1/backup/" + str(backup_id) + "/run"
+    baseurl = common.create_baseurl(data, path)
+    cookies = common.create_cookies(data)
+    headers = common.create_headers(data)
     verify = data.get("server", {}).get("verify", True)
     r = requests.post(baseurl, headers=headers, cookies=cookies, verify=verify)
-    check_response(data, r.status_code)
+    common.check_response(data, r.status_code)
     if r.status_code != 200:
-        log_output("Error scheduling backup ", True, r.status_code)
+        common.log_output("Error scheduling backup ", True, r.status_code)
         return
-    log_output("Backup scheduled", True, 200)
+    common.log_output("Backup scheduled", True, 200)
 
 
 # Call the API to abort a task
 def abort_task(data, task_id):
-    verify_token(data)
+    common.verify_token(data)
 
-    baseurl = create_baseurl(data, "/api/v1/task/" + str(task_id) + "/abort")
-    cookies = create_cookies(data)
-    headers = create_headers(data)
+    path = "/api/v1/task/" + str(task_id) + "/abort"
+    baseurl = common.create_baseurl(data, path)
+    cookies = common.create_cookies(data)
+    headers = common.create_headers(data)
     verify = data.get("server", {}).get("verify", True)
     r = requests.post(baseurl, headers=headers, cookies=cookies, verify=verify)
-    check_response(data, r.status_code)
+    common.check_response(data, r.status_code)
     if r.status_code != 200:
-        log_output("Error aborting task ", True, r.status_code)
+        common.log_output("Error aborting task ", True, r.status_code)
         return
-    log_output("Task aborted", True, 200)
+    common.log_output("Task aborted", True, 200)
 
 
 # Delete wrapper
-def delete_resource(data, resource_type, resource_id, 
+def delete_resource(data, resource_type, resource_id,
                     confirm=False, delete_db=False):
     if resource_type == "backup":
         delete_backup(data, resource_id, confirm, delete_db)
     elif resource_type == "notification":
         delete_notification(data, resource_id)
 
+
 # Call the API to delete a backup
 def delete_backup(data, backup_id, confirm=False, delete_db=False):
-    verify_token(data)
+    common.verify_token(data)
 
     # Check if the backup exists
     result = fetch_backups(data, [backup_id], "get")
@@ -776,68 +783,68 @@ def delete_backup(data, backup_id, confirm=False, delete_db=False):
         options = '[y/N]:'
         agree = input(message + ' ' + options)
         if agree not in ["Y", "y", "yes", "YES"]:
-            log_output("Backup not deleted", True)
+            common.log_output("Backup not deleted", True)
             return
 
-    baseurl = create_baseurl(data, "/api/v1/backup/" + str(backup_id))
-    cookies = create_cookies(data)
-    headers = create_headers(data)
+    baseurl = common.create_baseurl(data, "/api/v1/backup/" + str(backup_id))
+    cookies = common.create_cookies(data)
+    headers = common.create_headers(data)
     verify = data.get("server", {}).get("verify", True)
     # We cannot delete remote files because the captcha is graphical
     payload = {'delete-local-db': delete_db, 'delete-remote-files': False}
 
     r = requests.delete(baseurl, headers=headers, cookies=cookies,
                         params=payload, verify=verify)
-    check_response(data, r.status_code)
+    common.check_response(data, r.status_code)
     if r.status_code != 200:
-        log_output("Error deleting backup", True, r.status_code)
+        common.log_output("Error deleting backup", True, r.status_code)
         return
-    log_output("Backup deleted", True, 200)
+    common.log_output("Backup deleted", True, 200)
 
 
 # Call the API to delete a notification
 def delete_notification(data, notification_id):
-    verify_token(data)
+    common.verify_token(data)
 
     url = "/api/v1/notification/"
-    baseurl = create_baseurl(data, url + str(notification_id))
-    cookies = create_cookies(data)
-    headers = create_headers(data)
+    baseurl = common.create_baseurl(data, url + str(notification_id))
+    cookies = common.create_cookies(data)
+    headers = common.create_headers(data)
     verify = data.get("server", {}).get("verify", True)
     r = requests.delete(baseurl, headers=headers, cookies=cookies,
                         verify=verify)
-    check_response(data, r.status_code)
+    common.check_response(data, r.status_code)
     if r.status_code == 404:
-        log_output("Notification not found", True, r.status_code)
+        common.log_output("Notification not found", True, r.status_code)
         return
     elif r.status_code != 200:
-        log_output("Error deleting notification", True, r.status_code)
+        common.log_output("Error deleting notification", True, r.status_code)
         return
-    log_output("Notification deleted", True, 200)
+    common.log_output("Notification deleted", True, 200)
 
 
 def update_backup(data, backup_id, backup_config, import_meta=True):
-    verify_token(data)
+    common.verify_token(data)
 
     # Strip metadata if requested
     if import_meta is not None and not import_meta:
         backup_config.get("Backup", {}).pop("Metadata", None)
 
-    baseurl = create_baseurl(data, "/api/v1/backup/" + str(backup_id))
-    cookies = create_cookies(data)
-    headers = create_headers(data)
+    baseurl = common.create_baseurl(data, "/api/v1/backup/" + str(backup_id))
+    cookies = common.create_cookies(data)
+    headers = common.create_headers(data)
     verify = data.get("server", {}).get("verify", True)
     payload = json.dumps(backup_config, default=str)
     r = requests.put(baseurl, headers=headers, cookies=cookies,
                      data=payload, verify=verify)
-    check_response(data, r.status_code)
+    common.check_response(data, r.status_code)
     if r.status_code == 404:
-        log_output("Backup not found", True, r.status_code)
+        common.log_output("Backup not found", True, r.status_code)
         return
     elif r.status_code != 200:
-        log_output("Error updating backup", True, r.status_code)
+        common.log_output("Error updating backup", True, r.status_code)
         return
-    log_output("Backup updated", True, 200)
+    common.log_output("Backup updated", True, 200)
 
 
 # Determine if and how we validate SSL
@@ -848,130 +855,8 @@ def determine_ssl_validation(data, certfile=None, insecure=False):
         data["server"]["verify"] = False
     else:
         data["server"]["verify"] = True
-    write_config(data)
+    common.write_config(data)
     return data["server"]["verify"]
-
-
-# Login by authenticating against the Duplicati API and extracting a token
-def login(data, input_url=None, password=None, verify=True, interactive=True):
-    if input_url is None:
-        input_url = ""
-
-    # Split protocol, url, and port
-    input_url = input_url.replace("/", "").replace("_", "")
-    count = input_url.count(":")
-    protocol = ""
-    url = ""
-    port = ""
-    if count == 2:
-        protocol, url, port = input_url.split(":")
-    elif count == 1 and input_url.index(":") < 6:
-        protocol, url = input_url.split(":")
-    elif count == 1:
-        url, port = input_url.split(":")
-    elif count == 0:
-        url = input_url
-    else:
-        log_output("Invalid URL", True)
-        sys.exit(2)
-
-    # Strip nondigits
-    port = ''.join(re.findall(r'\d+', port))
-
-    # Default to config file values for any missing parameters
-    if protocol is None or protocol.lower() not in ["http", "https"]:
-        protocol = data["server"]["protocol"]
-    if url is None or url == "":
-        url = data["server"]["url"]
-    if port is None or port == "":
-        port = data["server"]["port"]
-
-    # Update config
-    data["server"]["protocol"] = protocol
-    data["server"]["url"] = url
-    data["server"]["port"] = port
-
-    # Make the login attempt
-    baseurl = create_baseurl(data, "")
-    log_output("Connecting to " + baseurl + "...", False)
-    r = requests.get(baseurl, allow_redirects=True, verify=verify)
-    check_response(data, r.status_code)
-
-    # Detect if we were prompted to login
-    login_redirect = "/login.html" in r.url
-    # Detect if we were redirected to https
-    if "https://" in r.url and protocol != "https":
-        data["server"]["protocol"] = "https"
-        log_output("Redirected from http to https", True)
-
-    if r.status_code == 200 and not login_redirect:
-        log_output("OK", False, r.status_code)
-        token = unquote(r.cookies["xsrf-token"])
-    elif r.status_code == 200 and login_redirect:
-        # Get password by prompting user if no password was given in-line
-        if password is None and interactive:
-            log_output("Authentication required", False, r.status_code)
-            password = getpass.getpass('Password:')
-        elif password is None and not interactive:
-            log_output("A password is required required", True)
-            sys.exit(2)
-
-        log_output("Getting nonce and salt...", False)
-        baseurl = create_baseurl(data, "/login.cgi")
-        payload = {'get-nonce': 1}
-        r = requests.post(baseurl, data=payload, verify=verify)
-        if r.status_code != 200:
-            log_output("Error getting salt from server", True, r.status_code)
-            sys.exit(2)
-
-        salt = r.json()["Salt"]
-        data["nonce"] = unquote(r.json()["Nonce"])
-        token = unquote(r.cookies["xsrf-token"])
-        log_output("Hashing password...", False)
-        salt_password = password.encode() + base64.b64decode(salt)
-        saltedpwd = hashlib.sha256(salt_password).digest()
-        nonce_password = base64.b64decode(data["nonce"]) + saltedpwd
-        noncedpwd = hashlib.sha256(nonce_password).digest()
-
-        log_output("Authenticating... ", False)
-        payload = {
-            "password": base64.b64encode(noncedpwd).decode('utf-8')
-        }
-        cookies = {
-            "xsrf-token": token,
-            "session-nonce": data.get("nonce", "")
-        }
-        r = requests.post(baseurl, data=payload,
-                          cookies=cookies, verify=verify)
-        check_response(data, r.status_code)
-        if r.status_code == 200:
-            log_output("Connected", False, r.status_code)
-            data["session-auth"] = unquote(r.cookies["session-auth"])
-        else:
-            message = "Error authenticating against the server"
-            log_output(message, True, r.status_code)
-            sys.exit(2)
-    else:
-        message = "Error connecting to server"
-        log_output(message, True, r.status_code)
-        sys.exit(2)
-
-    # Update the config file with provided values
-    data["token"] = token
-    expiration = datetime.datetime.now() + datetime.timedelta(0, 600)
-    data["token_expires"] = expiration
-    data["last_login"] = datetime.datetime.now()
-    write_config(data)
-    log_output("Login successful", True)
-    return True
-
-
-# Logout by deleting the token from memory and disk
-def logout(data):
-    log_output("Logging out...", True)
-    data["token"] = None
-    write_config(data)
-    return data
 
 
 # Toggle verbosity
@@ -983,100 +868,62 @@ def toggle_verbose(data, mode=None):
     else:
         data["verbose"] = not data.get("verbose", False)
 
-    write_config(data)
+    common.write_config(data)
     verbose = data.get("verbose", True)
     message = "verbose mode: " + str(verbose)
-    log_output(message, True)
+    common.log_output(message, True)
     return data
 
 
 # Print the status to stdout
 def display_status(data):
-    global config_file
-    global application_version
+    message = "Application version: " + config.APPLICATION_VERSION
+    common.log_output(message, True)
 
-    log_output("Application version: " + application_version, True)
-
-    message = "Config file: " + config_file
-    log_output(message, True)
+    message = "Config file: " + config.CONFIG_FILE
+    common.log_output(message, True)
 
     if data.get("parameters_file", None) is not None:
         param_file = data.get("parameters_file", "")
         message = "Params file: " + param_file
-        log_output(message, True)
+        common.log_output(message, True)
 
     token = data.get("token", None)
     token_expires = data.get("token_expires", None)
     if token is None or token_expires is None:
-        log_output("Not logged in", True)
+        common.log_output("Not logged in", True)
         sys.exit(2)
 
     if data.get("last_login", None) is not None:
         last_login = data.get("last_login", "")
-        message = "Logged in  : " + format_time(last_login)
-        log_output(message, True)
+        message = "Logged in  : " + helper.format_time(last_login)
+        common.log_output(message, True)
 
     if token_expires is not None:
-        message = "Expiration : " + format_time(token_expires)
-        log_output(message, True)
+        message = "Expiration : " + helper.format_time(token_expires)
+        common.log_output(message, True)
 
 
 # Load the configration from disk
 def load_config(data, overwrite=False):
-    global config_file
     # If the config file doesn't exist, create it
-    if os.path.isfile(config_file) is False or overwrite is True:
-        log_output("Creating config file", True)
-        write_config(data)
+    if os.path.isfile(config.CONFIG_FILE) is False or overwrite is True:
+        common.log_output("Creating config file", True)
+        common.write_config(data)
     # Load the configuration from the config file
-    with open(config_file, 'r') as file:
+    with open(config.CONFIG_FILE, 'r') as file:
         try:
             data = yaml.safe_load(file)
-            validate_config(data)
+            common.validate_config(data)
             return data
         except yaml.YAMLError as exc:
-            log_output(exc, True)
+            common.log_output(exc, True)
             sys.exit(2)
-
-
-# function for validating that required config fields are present
-def validate_config(data):
-    valid = True
-    if "server" not in data:
-        valid = False
-    if "protocol" not in data.get("server", {}):
-        valid = False
-    if "url" not in data.get("server", {}):
-        valid = False
-    if "port" not in data.get("server", {}):
-        valid = False
-    if "token" not in data:
-        valid = False
-    if "token_expires" not in data:
-        valid = False
-
-    if not valid:
-        message = "Configuration appears to be invalid. "
-        message += "You can re-create it with --overwrite."
-        log_output(message, True)
-        sys.exit(2)
-
-
-# Write config to file
-def write_config(data):
-    global config_file
-    directory = os.path.dirname(config_file)
-    if not os.path.exists(directory):
-        message = "Created directory \"" + directory + "\""
-        log_output(message, True)
-        os.makedirs(directory)
-    with open(config_file, 'w') as file:
-        file.write(yaml.dump(data, default_flow_style=False))
 
 
 # Print the config to stdout
 def display_config(data):
-    log_output(yaml.dump(data, default_flow_style=False), True)
+    common.log_output(yaml.dump(data, default_flow_style=False), True)
 
 
 # Set parameters file
@@ -1084,54 +931,17 @@ def set_parameters_file(data, args, file=None):
     # Disable parameters file if requested
     if args.get("disable", False):
         data.pop("parameters_file", None)
-        write_config(data)
-        log_output("Disabling parameters-file", True)
+        common.write_config(data)
+        common.log_output("Disabling parameters-file", True)
         return data
 
     if file is None:
         return data
 
     data["parameters_file"] = file
-    write_config(data)
-    log_output("Setting parameters-file", True)
+    common.write_config(data)
+    common.log_output("Setting parameters-file", True)
     return data
-
-
-# Load parameters from file
-def load_parameters(data, args):
-    # Check for parameters file
-    file = data.get("parameters_file", None)
-    if file is None:
-        return args
-
-    # Don't load nonexisting files
-    if os.path.isfile(file) is False:
-        return args
-
-    # Load the parameters from the file
-    with open(file, 'r') as file_handle:
-        try:
-            parameters_file = yaml.safe_load(file_handle)
-            parameters = len(parameters_file)
-            message = "Loaded " + str(parameters) + " parameters from file"
-            log_output(message, True)
-
-            for key, value in parameters_file.items():
-                # Make sure not to override CLI provided arguments
-                if args.get(key, None) is None:
-                    args[key] = value
-
-            # Verbose is special because verbose is a command not an argument
-            if parameters_file.get("verbose", None) is not None:
-                data["verbose"] = parameters_file.get("verbose")
-
-            # Update parameters_file variable in config file
-            data["parameters_file"] = file
-            write_config(data)
-            return args
-        except yaml.YAMLError as exc:
-            log_output(exc, True)
-            return args
 
 
 # Print parameters to stdout
@@ -1143,11 +953,11 @@ def display_parameters(data):
         try:
             parameters_file = yaml.safe_load(file_handle)
             output = yaml.dump(parameters_file, default_flow_style=False)
-            log_output(output, True)
+            common.log_output(output, True)
             return
         except Exception:
             message = "Could not load parameters file"
-            log_output(message, True)
+            common.log_output(message, True)
             return
 
 
@@ -1161,7 +971,7 @@ def import_resource(data, resource, import_file, backup_id, import_meta=None):
 def import_backup(data, import_file, backup_id=None, import_meta=None):
     # Don't load nonexisting files
     if os.path.isfile(import_file) is False:
-        log_output(import_file + " not found", True)
+        common.log_output(import_file + " not found", True)
         return
 
     # Load the import file
@@ -1171,21 +981,21 @@ def import_backup(data, import_file, backup_id=None, import_meta=None):
             try:
                 backup_config = yaml.safe_load(file_handle)
             except yaml.YAMLError:
-                log_output("Failed to load file as YAML", True)
+                common.log_output("Failed to load file as YAML", True)
                 return
 
         elif extension.lower() == ".json":
             try:
                 backup_config = json.load(file_handle)
             except Exception:
-                log_output("Failed to load file as JSON", True)
+                common.log_output("Failed to load file as JSON", True)
                 return
 
     # Determine if we're importing a new backup or updating an existing backup
     if backup_id is not None:
         return update_backup(data, backup_id, backup_config, import_meta)
 
-    verify_token(data)
+    common.verify_token(data)
 
     # Strip metadata if requsted
     if import_meta is None or import_meta is not True:
@@ -1206,12 +1016,12 @@ def import_backup(data, import_file, backup_id=None, import_meta=None):
         'import_metadata': import_meta,
         'direct': True
     }
-    cookies = create_cookies(data)
-    baseurl = create_baseurl(data, "/api/v1/backups/import", True)
+    cookies = common.create_cookies(data)
+    baseurl = common.create_baseurl(data, "/api/v1/backups/import", True)
     verify = data.get("server", {}).get("verify", True)
     r = requests.post(baseurl, files=files, cookies=cookies, data=payload,
                       verify=verify)
-    check_response(data, r.status_code)
+    common.check_response(data, r.status_code)
     # Code for extracting error messages posted with inline javascript
     # and with 200 OK http status code, preventing us from detecting
     # the error otherwise.
@@ -1220,14 +1030,15 @@ def import_backup(data, import_file, backup_id=None, import_meta=None):
         start = text.index("if (rp) { rp('")+14
         end = text.index(", line ")
         error = text[start:end].replace("\\'", "'") + "."
-        log_output(error, True)
+        common.log_output(error, True)
         sys.exit(2)
     except ValueError:
         pass
     if r.status_code != 200:
-        log_output("Error importing backup configuration", True, r.status_code)
+        message = "Error importing backup configuration"
+        common.log_output(message, True, r.status_code)
         sys.exit(2)
-    log_output("Backup job created", True, 200)
+    common.log_output("Backup job created", True, 200)
 
 
 # Export resource wrapper function
@@ -1241,7 +1052,7 @@ def export_backup(data, backup_id, output=None, path=None):
     # Get backup config
     result = fetch_backups(data, [backup_id], "describe")
     if result is None or len(result) == 0:
-        log_output("Could not fetch backup", True)
+        common.log_output("Could not fetch backup", True)
         return
     backup = result[0]
     # Strip DisplayNames and Progress
@@ -1252,7 +1063,7 @@ def export_backup(data, backup_id, output=None, path=None):
     systeminfo = fetch_resource_list(data, "systeminfo")
 
     if systeminfo.get("ServerVersion", None) is None:
-        log_output("Error exporting backup", True)
+        common.log_output("Error exporting backup", True)
         sys.exit(2)
 
     backup["CreatedByVersion"] = systeminfo["ServerVersion"]
@@ -1274,7 +1085,7 @@ def export_backup(data, backup_id, output=None, path=None):
     directory = os.path.dirname(path)
     if directory != '' and not os.path.exists(directory):
         message = "Created directory \"" + directory + "\""
-        log_output(message, True)
+        common.log_output(message, True)
         os.makedirs(directory)
     # Check if output file exists
     if os.path.isfile(path) is True:
@@ -1286,485 +1097,17 @@ def export_backup(data, backup_id, output=None, path=None):
             file.write(json.dumps(backup, indent=4, default=str))
         else:
             file.write(yaml.dump(backup, default_flow_style=False))
-    log_output("Created " + path, True, 200)
-
-
-# Common function for verifying token validity
-def verify_token(data):
-    token = data.get("token", None)
-    expires = data.get("token_expires", None)
-    if token is None or expires is None:
-        log_output("Not logged in", True)
-        sys.exit(2)
-
-    # Get time
-    now = datetime.datetime.now()
-
-    # Take care of timezones
-    now = now.replace(tzinfo=tz.tzutc())
-    now = now.astimezone(tz.tzlocal())
-    expires = expires.replace(tzinfo=tz.tzutc())
-    expires = expires.astimezone(tz.tzlocal())
-
-    # Check if token is still valid
-    if now < expires:
-        return
-
-    # Try to log in again
-    log_output("Token expired, trying to log in again", True)
-    verify = data.get("server", {}).get("verify", True)
-    args = load_parameters(data, {})
-    password = args.get("password", None)
-    if login(data, password=password, verify=verify):
-        return
-
-    # Exit if token is invalid and an attempt to login failed
-    sys.exit(2)
-
-
-# Common function for checking API responses for session expiration
-def check_response(data, status_code):
-    # Exit if session expired
-    if status_code == 400:
-        message = "The server refused the request, "
-        message += "you may need to login again"
-        log_output(message, True)
-        sys.exit(2)
-
-    if status_code == 526:
-        message = "Server certificate could not be validated. "
-        log_output(message, True, status_code)
-        message = "You can specify a certificate with --certfile "
-        message += "or explicitly ignore this error with --insecure"
-        log_output(message, True)
-        sys.exit(2)
-
-    if status_code == 495:
-        message = "Provided certificate is invalid or "
-        message += "does not match the server certificate"
-        log_output(message, True)
-        sys.exit(2)
-
-    if status_code == 503:
-        message = "Server is not responding. Is it running?"
-        log_output(message, True, status_code)
-        sys.exit(2)
-
-    # Refresh token duration if request is OK
-    if status_code == 200:
-        expiration = datetime.datetime.now() + datetime.timedelta(0, 600)
-        data["token_expires"] = expiration
-        write_config(data)
-
-
-# Common function for logging messages
-def log_output(text, important, code=None):
-    global verbose
-
-    # Determine whether the message should be displayed in stdout
-    if verbose is False and important is False:
-        return
-    if code is None or verbose is False:
-        print(text)
-        return
-
-    print(text + "\nCode: " + str(code))
-
-
-# Common function for creating cookies to authenticate against the API
-def create_cookies(data):
-    token = data.get("token", "")
-    if data.get("nonce", None) is None:
-        return {
-            "xsrf-token": token
-        }
-    else:
-        nonce = data.get("nonce", "")
-        session_auth = data.get("session-auth", "")
-        return {
-            "xsrf-token": token,
-            "session-nonce": nonce,
-            "session-auth": session_auth
-        }
-
-
-# Common function for creating headers to authenticate against the API
-def create_headers(data):
-    return {
-        "X-XSRF-TOKEN": data.get("token", "")
-    }
-
-
-# Common function for creating a base url
-def create_baseurl(data, additional_path, append_token=False):
-    protocol = data["server"]["protocol"]
-    url = data["server"]["url"]
-    if protocol != "https":
-        port = data["server"]["port"]
-    else:
-        port = ""
-    baseurl = protocol + "://" + url + ":" + port + additional_path
-    if append_token is True:
-        baseurl += "?x-xsrf-token=" + quote(data.get("token", ''))
-
-    return baseurl
-
-
-# Common function for formatting timestamps for humans
-def format_time(time_string, precise=False):
-    # Ensure it's a string
-    time_string = str(time_string)
-
-    # Filter out "unset" time
-    if time_string == "0001-01-01T00:00:00Z" or time_string == "0":
-        return None
-
-    # We want to fail silently if we're not provided a parsable time_string.
-    try:
-        datetime_object = dateparser.parse(time_string)
-    except Exception as exc:
-        log_output(exc, False)
-        return None
-
-    # Print a precise, but human readable string if precise is true
-    if precise:
-        return datetime_object.strftime("%I:%M:%S %p %d/%m/%Y")
-
-    # Now for comparison
-    now = datetime.datetime.now()
-
-    try:
-        # Take care of timezones
-        now = now.replace(tzinfo=tz.tzutc())
-        now = now.astimezone(tz.tzlocal())
-        datetime_object = datetime_object.replace(tzinfo=tz.tzutc())
-        datetime_object = datetime_object.astimezone(tz.tzlocal())
-    except Exception as exc:
-        log_output(exc, False)
-        return None
-
-    # Get the delta
-    if (datetime_object > now):
-        delta = (datetime_object - now)
-    else:
-        delta = (now - datetime_object)
-
-    # Display hours if within 24 hours of now, else display dmy
-    if abs(delta.days) > 1:
-        return datetime_object.strftime("%d/%m/%Y")
-    elif delta.days == 1:
-        return "Yesterday " + datetime_object.strftime("%I:%M %p")
-    elif delta.days == -1:
-        return "Tomorrow " + datetime_object.strftime("%I:%M %p")
-    else:
-        return datetime_object.strftime("%I:%M %p")
-
-
-# Common function for formatting time deltas for humans
-def format_duration(duration_string):
-    duration = duration_string.split(".")[0]
-    return duration
-
-
-# Common function for human readable bit sizes
-# Source https://stackoverflow.com/questions/12523586/
-def bytes_2_human_readable(number_of_bytes):
-    if number_of_bytes < 0:
-        raise ValueError("!!! numberOfBytes can't be smaller than 0 !!!")
-
-    step_to_greater_unit = 1024.
-
-    number_of_bytes = float(number_of_bytes)
-    unit = 'bytes'
-
-    if (number_of_bytes / step_to_greater_unit) >= 1:
-        number_of_bytes /= step_to_greater_unit
-        unit = 'KB'
-
-    if (number_of_bytes / step_to_greater_unit) >= 1:
-        number_of_bytes /= step_to_greater_unit
-        unit = 'MB'
-
-    if (number_of_bytes / step_to_greater_unit) >= 1:
-        number_of_bytes /= step_to_greater_unit
-        unit = 'GB'
-
-    if (number_of_bytes / step_to_greater_unit) >= 1:
-        number_of_bytes /= step_to_greater_unit
-        unit = 'TB'
-
-    precision = 2
-    number_of_bytes = round(number_of_bytes, precision)
-
-    return str(number_of_bytes) + ' ' + unit
-
-
-# Use the correct directory for each OS
-def get_config_location():
-    home = expanduser("~")
-    if platform.system() == 'Windows':
-        config_dir = "/AppData/Local/DuplicatiClient/"
-    else:
-        config_dir = "/.config/duplicati-client/"
-
-    config_file = home + config_dir + "config.yml"
-    return config_file
-
-
-# Clear terminal prompt
-def clear_prompt():
-    if platform.system() == 'Windows':
-        os.system('cls')
-    else:
-        os.system('clear')
-
-
-# Python 3 vs 2 urllib compatibility issues
-def unquote(text):
-    if sys.version_info[0] >= 3:
-        return urllib.parse.unquote(text)
-    else:
-        return urllib.unquote(text)
-
-
-# More urllib compatibility issues
-def quote(text):
-    if sys.version_info[0] >= 3:
-        return urllib.parse.quote_plus(text)
-    else:
-        return urllib.quote_plus(text)
-
-
-# Client intro
-def info():
-    return """Duplicati Client
-
-Connect to Duplicati remotely or locally and manage them through the CLI.
-
-To begin log into a server:
-    duplicati login https://my.duplicati.server
-
-or see --help to see information on usage
-"""
+    common.log_output("Created " + path, True, 200)
 
 
 # argparse argument logic
 if __name__ == '__main__':
     if (len(sys.argv) == 1):
-        log_output(info(), True)
+        common.log_output(common.info(), True)
         sys.exit(2)
+
     # Initialize argument parser and standard optional arguments
-    parser = ap.ArgumentParser()
-
-    # Create subparsers
-    subparsers = parser.add_subparsers(title='commands', metavar="", help="")
-
-    # Subparser for the List method
-    message = "list all resources of a given type"
-    list_parser = subparsers.add_parser('list', help=message)
-    choices = [
-        "backups",
-        "restores",
-        "notifications",
-        "serversettings",
-        "systeminfo"
-    ]
-    message = "the type of resource"
-    list_parser.add_argument('type', choices=choices, help=message)
-
-    # Subparser for the Get method
-    message = "display breif information on one or many resources"
-    get_parser = subparsers.add_parser('get', help=message)
-    message = "the type of resource"
-    choices = ["backup", "notification"]
-    get_parser.add_argument('type', choices=choices, help=message)
-    message = "one or more ID's to look up"
-    get_parser.add_argument('id', nargs='+', help=message)
-
-    # Subparser for the Describe method
-    message = "display detailed information on a specific resource"
-    describe_parser = subparsers.add_parser('describe', help=message)
-    message = "the type of resource"
-    choices = [
-        "backup",
-        "notification"
-    ]
-    describe_parser.add_argument('type', choices=choices, help=message)
-    message = "the ID of the resource to look up"
-    describe_parser.add_argument('id', type=int, help=message)
-
-    # Subparser for the Run method
-    message = "run a backup job"
-    run_parser = subparsers.add_parser('run', help=message)
-    message = "the ID of the backup job to run"
-    run_parser.add_argument('id', type=int, help=message)
-
-    # Subparser for the Abort method
-    message = "abort a task"
-    abort_parser = subparsers.add_parser('abort', help=message)
-    message = "the ID of the task to abort"
-    abort_parser.add_argument('id', type=int, help=message)
-
-    # Subparser for the Create method
-    message = "create a resource on the server from a YAMl or JSON file"
-    create_parser = subparsers.add_parser('create', help=message)
-    message = "the type of resource"
-    create_parser.add_argument('type', choices=["backup"], help=message)
-    message = "file containing a job configuration in YAML or JSON format"
-    create_parser.add_argument('import-file', nargs='?', help=message)
-    message = "import the metadata when creating a backup"
-    create_parser.add_argument('--import-metadata', help=message, action='store_true')
-
-    # Subparser for the Update method
-    message = "update a resource on the server from a YAMl or JSON file"
-    update_parser = subparsers.add_parser('update', help=message)
-    message = "the type of resource"
-    update_parser.add_argument('type', choices=["backup"], help=message)
-    message = "the ID of the resource to update"
-    update_parser.add_argument('id', help=message)
-    message = "file containing a job configuration in YAML or JSON format"
-    update_parser.add_argument('import-file', nargs='?', help=message)
-    message = "strip metadata before updating the resource"
-    update_parser.add_argument('--strip-metadata', help=message, action='store_true')
-
-    # Subparser for the Delete method
-    message = "delete a backup"
-    delete_parser = subparsers.add_parser('delete', help=message)
-    choices = ["backup", "notification"]
-    message = "the type of resource"
-    delete_parser.add_argument('type', choices=choices, help=message)
-    message = "the ID of the backup to delete"
-    delete_parser.add_argument('id', type=int, help=message)
-    # message = "delete the local database"
-    # delete_parser.add_argument('--delete-db',
-    #                            action='store_true', help=message)
-    message = "confirm deletion non-interactively"
-    delete_parser.add_argument('--confirm',
-                               action='store_true', help=message)
-
-    # Subparser for the Edit method
-    # message = "edit a resource on the server"
-    # edit_parser = subparsers.add_parser('edit', help=message)
-    # message = "the type of resource"
-    # edit_parser.add_argument('type', help=message)
-    # message = "the ID of the resource to edit"
-    # edit_parser.add_argument('id', type=int, help=message)
-
-    # Subparser for the Export method
-    message = "export a resource from the server to YAMl or JSON format"
-    export_parser = subparsers.add_parser('export', help=message)
-    choices = ["backup"]
-    message = "the type of resource"
-    export_parser.add_argument('type', choices=choices, help=message)
-    message = "the ID of the resource to export"
-    export_parser.add_argument('id', type=int, help=message)
-    choices = [
-        "YAML",
-        "JSON",
-        "yaml",
-        "json"
-    ]
-    message = "output YAML or JSON, defaults to YAML"
-    export_parser.add_argument('--output', help=message,
-                               choices=choices, metavar='')
-    message = "Path to output the file at"
-    export_parser.add_argument('--output-path', metavar='', help=message)
-
-    # Subparser for the Import method
-    message = "[DEPRECATED] import a resource from a YAMl or JSON file"
-    import_parser = subparsers.add_parser('import', help=message)
-    message = "the type of resource"
-    import_parser.add_argument('type', choices=["backup"], help=message)
-    message = "file containing a job configuration in YAML or JSON format"
-    import_parser.add_argument('import-file', nargs='?', help=message)
-    message = "provide a backup id to update an existing backup"
-    import_parser.add_argument('--id', metavar='', help=message)
-    # Add mutual exclusion for the Import method
-    group = import_parser.add_mutually_exclusive_group()
-    message = "import the metadata when creating a backup"
-    group.add_argument('--import-metadata', help=message, action='store_true')
-    message = "strip the metadata before updating a backup"
-    group.add_argument('--strip-metadata', help=message, action='store_true')
-
-    # Subparser for the Dismiss method
-    message = "dismiss notifications"
-    dismiss_parser = subparsers.add_parser('dismiss', help=message)
-    message = "dismiss one or all notifications"
-    dismiss_parser.add_argument('id', metavar='{id, all}', help=message)
-
-    # Subparser for the Logs method
-    message = "display the logs for a given job"
-    logs_parser = subparsers.add_parser('logs', help=message)
-    choices = [
-        "backup",
-        "stored",
-        "profiling",
-        "information",
-        "warning",
-        "error"
-    ]
-    message = "backup, stored, profiling, information, warning, or error"
-    logs_parser.add_argument('type', metavar='type',
-                             choices=choices, help=message)
-    message = "backup id"
-    logs_parser.add_argument('--id', type=int, metavar='', help=message)
-    message = "view backend logs for the backup job"
-    logs_parser.add_argument('--remote', action='store_true', help=message)
-    message = "periodically pool for new logs until interrupted"
-    logs_parser.add_argument('--follow', action='store_true', help=message)
-    message = "log lines to display"
-    logs_parser.add_argument('--lines', action='store', default=5,
-                             type=int, metavar='', help=message)
-    message = "show all message and exception lines"
-    logs_parser.add_argument('--all', action='store_true', help=message)
-
-    # Subparser for the Login method
-    message = "log into a Duplicati server"
-    login_parser = subparsers.add_parser('login', help=message)
-    login_parser.add_argument('url', nargs='?')
-    message = "provide a password inline instead of interactively"
-    login_parser.add_argument('--password', metavar='', help=message)
-    message = "allow insecure HTTPS connections to the server"
-    login_parser.add_argument('--insecure', action='store_true', help=message)
-    message = "specify the path to certificate to be used for validation"
-    login_parser.add_argument('--certfile', metavar='', help=message)
-    message = "noninteractive mode for use in scripts"
-    login_parser.add_argument('--script', action='store_false', help=message)
-    
-
-    # Subparser for the Logout method
-    message = "end the current server session"
-    subparsers.add_parser('logout', help=message)
-
-    # Subparser for the Status method
-    message = "print information about the current session"
-    subparsers.add_parser('status', help=message)
-
-    # Subparser for the Config method
-    message = "print the config"
-    config_parser = subparsers.add_parser('config', help=message)
-    message = "create a new configuration"
-    config_parser.add_argument('--overwrite', action='store_true',
-                               help=message)
-
-    # Subparser for the Daemon mode
-    # message = "run as a service"
-    # subparsers.add_parser('daemon', help=message)
-
-    # Subparser for toggling verbose mode
-    message = "Change between normal and verbose mode"
-    verbose_parser = subparsers.add_parser('verbose', help=message)
-    choices = ["enable", "disable"]
-    verbose_parser.add_argument('mode', nargs='?', choices=choices)
-
-    # Subparser for setting a parameter file
-    message = "import parameters from a YAML file"
-    params_parser = subparsers.add_parser('params', help=message)
-    message = "path to file containing parameters in YAML format"
-    params_parser.add_argument('param-file', nargs='?', help=message)
-    message = "disable the parameters file"
-    params_parser.add_argument('--disable', help=message, action='store_true')
-    params_parser.add_argument('--show', help=message, action='store_true')
+    parser = ArgumentParser.parser
 
     # Construct parsers and initialize the main method
     args = parser.parse_args()
