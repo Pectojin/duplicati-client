@@ -1,5 +1,19 @@
 # Duplicati client
-Version 0.2.15 beta
+Version 0.3.8 beta
+
+## 0.3.8 beta (da02b4a)
+
+Added support for basic authentication (e.g. through a reverse proxy). Can be used with the `--basic-user` and `--basic-pass` parameters inline, in the params file, or interactively.
+
+Added `processed data` field to the get command output to display along with the `processed files`
+
+Refactored the client code base into smaller more manageable modules
+
+Updated the create/update/import commands to better parse import errors provided by the Duplicati server
+
+Added --script argument to the login command to prevent interactive prompts in scripts
+
+Fixed a problem with timestamp parsing errors
 
 ## 0.2.15 beta (c5a437e)
 Updated config file path to be canonical on Windows (`%APPDATA%/Local/DuplicatiClient`) and Linux (`~/.config/duplicati-client`).
