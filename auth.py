@@ -14,7 +14,7 @@ from os.path import expanduser
 
 # Login by authenticating against the Duplicati API and extracting a token
 def login(data, input_url=None, password=None, verify=True,
-          interactive=True, basic_user=None):
+          interactive=True, basic_user=None, basic_pass=None):
     if input_url is None:
         input_url = ""
 
@@ -66,9 +66,14 @@ def login(data, input_url=None, password=None, verify=True,
     # Detect if we're prompted for basic authentication
     auth_method = r.headers.get('WWW-Authenticate', False)
     if (auth_method):
-        common.log_output('Server requests basic auth...', False)
+        if basic_pass is None and interactive:
+            common.log_output('Basic authentication required...', False)
+            basic_pass = getpass.getpass('Basic auth:')
+        elif basic_pass is None:
+            basic_pass = password
+
         # Create the basic auth secret
-        secret = base64.b64encode((basic_user+":"+password).encode('ascii'))
+        secret = base64.b64encode((basic_user+":"+basic_pass).encode('ascii'))
         # Create the authorization string
         basic_auth = "Basic " + secret.decode('utf-8')
         headers = {"Authorization": basic_auth}
@@ -78,7 +83,7 @@ def login(data, input_url=None, password=None, verify=True,
         if r.status_code == 200:
             common.log_output('Passed basic auth', False)
             # Update basic auth secret in config file
-            data['basic_auth'] = basic_auth
+            data['authorization'] = basic_auth
 
     # Detect if we were prompted to login
     login_redirect = "/login.html" in r.url

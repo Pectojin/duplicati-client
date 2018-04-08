@@ -82,11 +82,12 @@ def main(**args):
         url = args.get("url", None)
         password = args.get("password", None)
         basic_user = args.get("basic_user", None)
+        basic_pass = args.get("basic_pass", None)
         certfile = args.get("certfile", None)
         insecure = args.get("insecure", False)
         verify = auth.determine_ssl_validation(data, certfile, insecure)
         interactive = args.get("script", True)
-        data = auth.login(data, url, password, verify, interactive, basic_user)
+        data = auth.login(data, url, password, verify, interactive, basic_user, basic_pass)
 
     # Logout
     if method == "logout":

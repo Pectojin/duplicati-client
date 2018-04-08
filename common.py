@@ -117,7 +117,7 @@ def create_headers(data):
     }
 
     # Add a basic auth header if available
-    basic_auth = data.get('basic_auth', None)
+    basic_auth = data.get('authorization', None)
     if basic_auth is not None:
         headers["Authorization"] = basic_auth
 
