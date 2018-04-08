@@ -172,13 +172,14 @@ login_parser = subparsers.add_parser('login', help=message)
 login_parser.add_argument('url', nargs='?')
 message = "provide a password inline instead of interactively"
 login_parser.add_argument('--password', metavar='', help=message)
+message = "username to use basic auth instead of Duplicati auth"
+login_parser.add_argument('--basic-user', metavar='', help=message)
 message = "allow insecure HTTPS connections to the server"
 login_parser.add_argument('--insecure', action='store_true', help=message)
 message = "specify the path to certificate to be used for validation"
 login_parser.add_argument('--certfile', metavar='', help=message)
 message = "noninteractive mode for use in scripts"
 login_parser.add_argument('--script', action='store_false', help=message)
-
 
 # Subparser for the Logout method
 message = "end the current server session"

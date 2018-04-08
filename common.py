@@ -9,6 +9,7 @@ import compatibility
 
 from dateutil import tz
 
+
 # Common function for validating that required config fields are present
 def validate_config(data):
     valid = True
@@ -111,9 +112,16 @@ def create_cookies(data):
 
 # Common function for creating headers to authenticate against the API
 def create_headers(data):
-    return {
+    headers = {
         "X-XSRF-TOKEN": data.get("token", "")
     }
+
+    # Add a basic auth header if available
+    basic_auth = data.get('basic_auth', None)
+    if basic_auth is not None:
+        headers["Authorization"] = basic_auth
+
+    return headers
 
 
 # Common function for creating a base url

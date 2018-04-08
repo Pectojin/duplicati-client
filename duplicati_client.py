@@ -38,7 +38,8 @@ def main(**args):
         },
         'token': None,
         'token_expires': None,
-        'verbose': False
+        'verbose': False,
+        'basic_auth': ''
     }
 
     # Detect home dir for config file
@@ -80,11 +81,12 @@ def main(**args):
     if method == "login":
         url = args.get("url", None)
         password = args.get("password", None)
+        basic_user = args.get("basic_user", None)
         certfile = args.get("certfile", None)
         insecure = args.get("insecure", False)
-        verify = determine_ssl_validation(data, certfile, insecure)
+        verify = auth.determine_ssl_validation(data, certfile, insecure)
         interactive = args.get("script", True)
-        data = auth.login(data, url, password, verify, interactive)
+        data = auth.login(data, url, password, verify, interactive, basic_user)
 
     # Logout
     if method == "logout":
@@ -427,7 +429,6 @@ def fetch_progress_state(data):
     # Check progress state and get info for the running backup
     r = requests.get(baseurl, headers=headers, cookies=cookies, verify=verify)
     if r.status_code != 200:
-        common.log_output("Error getting progressstate ", False, r.status_code)
         active_id = -1
         progress_state = {}
     else:
@@ -856,18 +857,6 @@ def update_backup(data, backup_id, backup_config, import_meta=True):
         common.log_output("Error updating backup", True, r.status_code)
         return
     common.log_output("Backup updated", True, 200)
-
-
-# Determine if and how we validate SSL
-def determine_ssl_validation(data, certfile=None, insecure=False):
-    if certfile is not None:
-        data["server"]["verify"] = expanduser(certfile)
-    elif insecure:
-        data["server"]["verify"] = False
-    else:
-        data["server"]["verify"] = True
-    common.write_config(data)
-    return data["server"]["verify"]
 
 
 # Toggle verbosity

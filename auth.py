@@ -9,10 +9,12 @@ import re
 import compatibility
 
 from requests_wrapper import requests_wrapper as requests
+from os.path import expanduser
 
 
 # Login by authenticating against the Duplicati API and extracting a token
-def login(data, input_url=None, password=None, verify=True, interactive=True):
+def login(data, input_url=None, password=None, verify=True,
+          interactive=True, basic_user=None):
     if input_url is None:
         input_url = ""
 
@@ -56,12 +58,30 @@ def login(data, input_url=None, password=None, verify=True, interactive=True):
     r = requests.get(baseurl, allow_redirects=True, verify=verify)
     common.check_response(data, r.status_code)
 
-    # Detect if we were prompted to login
-    login_redirect = "/login.html" in r.url
     # Detect if we were redirected to https
     if "https://" in r.url and protocol != "https":
         data["server"]["protocol"] = "https"
         common.log_output("Redirected from http to https", True)
+
+    # Detect if we're prompted for basic authentication
+    auth_method = r.headers.get('WWW-Authenticate', False)
+    if (auth_method):
+        common.log_output('Server requests basic auth...', False)
+        # Create the basic auth secret
+        secret = base64.b64encode((basic_user+":"+password).encode('ascii'))
+        # Create the authorization string
+        basic_auth = "Basic " + secret.decode('utf-8')
+        headers = {"Authorization": basic_auth}
+        r = requests.get(baseurl, verify=verify, headers=headers,
+                         allow_redirects=True)
+        common.check_response(data, r.status_code)
+        if r.status_code == 200:
+            common.log_output('Passed basic auth', False)
+            # Update basic auth secret in config file
+            data['basic_auth'] = basic_auth
+
+    # Detect if we were prompted to login
+    login_redirect = "/login.html" in r.url
 
     if r.status_code == 200 and not login_redirect:
         common.log_output("OK", False, r.status_code)
@@ -77,8 +97,9 @@ def login(data, input_url=None, password=None, verify=True, interactive=True):
 
         common.log_output("Getting nonce and salt...", False)
         baseurl = common.create_baseurl(data, "/login.cgi")
+        headers = common.create_headers(data)
         payload = {'get-nonce': 1}
-        r = requests.post(baseurl, data=payload, verify=verify)
+        r = requests.post(baseurl, headers=headers, data=payload, verify=verify)
         if r.status_code != 200:
             common.log_output("Error getting salt from server", True, r.status_code)
             sys.exit(2)
@@ -100,7 +121,7 @@ def login(data, input_url=None, password=None, verify=True, interactive=True):
             "xsrf-token": token,
             "session-nonce": data.get("nonce", "")
         }
-        r = requests.post(baseurl, data=payload,
+        r = requests.post(baseurl, headers=headers, data=payload,
                           cookies=cookies, verify=verify)
         common.check_response(data, r.status_code)
         if r.status_code == 200:
@@ -128,6 +149,19 @@ def login(data, input_url=None, password=None, verify=True, interactive=True):
 # Logout by deleting the token from memory and disk
 def logout(data):
     common.log_output("Logging out...", True)
-    data["token"] = None
+    data['token'] = None
+    data['basic_auth'] = None
     common.write_config(data)
     return data
+
+
+# Determine if and how we validate SSL
+def determine_ssl_validation(data, certfile=None, insecure=False):
+    if certfile is not None:
+        data["server"]["verify"] = expanduser(certfile)
+    elif insecure:
+        data["server"]["verify"] = False
+    else:
+        data["server"]["verify"] = True
+    common.write_config(data)
+    return data["server"]["verify"]
