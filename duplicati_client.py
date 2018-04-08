@@ -39,7 +39,7 @@ def main(**args):
         'token': None,
         'token_expires': None,
         'verbose': False,
-        'basic_auth': ''
+        'authorization': ''
     }
 
     # Detect home dir for config file
