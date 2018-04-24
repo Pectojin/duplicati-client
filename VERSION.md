@@ -1,5 +1,8 @@
 # Duplicati client
-Version 0.3.8 beta
+Version 0.3.9 beta
+
+## 0.3.9 beta (dbcbfed)
+Fixed a namespacing issue preventing the client binary from running on windows
 
 ## 0.3.8 beta (da02b4a)
 
