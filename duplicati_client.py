@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import parser as ArgumentParser
+import arg_parser as ArgumentParser
 import config
 import json
 import os.path
