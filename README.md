@@ -92,17 +92,19 @@ Logout when you're done
     describe  display detailed information on a specific resource
     run       run a backup job
     abort     abort a task
+    create    create a resource on the server from a YAMl or JSON file
+    update    update a resource on the server from a YAMl or JSON file
     delete    delete a backup
-    edit      edit a resource on the server
     export    export a resource from the server to YAMl or JSON format
     import    import a resource to the server from a YAMl or JSON file
+    dismiss   dismiss notifications
     logs      display the logs for a given job
     login     log into a Duplicati server
     logout    end the current server session
     status    return information about the current session
+    version   print version number
     config    prints the config to stdout
-    daemon    run Duplicati Client as a service
-    verbose   toggle verbose mode
+    verbose   Change between normal and verbose mode
     params    import parameters from a YAML file
 
 Some of the commands are placeholders until I get them implemented.
