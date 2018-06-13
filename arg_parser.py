@@ -40,6 +40,21 @@ describe_parser.add_argument('type', choices=choices, help=message)
 message = "the ID of the resource to look up"
 describe_parser.add_argument('id', type=int, help=message)
 
+# Subparser for the set method
+message = "set values on resources"
+set_parser = subparsers.add_parser('set', help=message)
+message = "control password protection of the server"
+set_subparser = set_parser.add_subparsers(title='set', metavar="", help="")
+message = "set or disable the server password"
+set_pwd_parser = set_subparser.add_parser('password', help=message)
+message = "disable the server password"
+set_pwd_parser.add_argument('--disable', help=message, action='store_true')
+message = "provide a password inline instead of interactively"
+set_pwd_parser.add_argument('--password', metavar='', help=message)
+message = "noninteractive mode for use in scripts"
+set_pwd_parser.add_argument('--script', action='store_false', help=message)
+
+
 # Subparser for the Run method
 message = "run a backup job"
 run_parser = subparsers.add_parser('run', help=message)
@@ -117,22 +132,6 @@ export_parser.add_argument('--output', help=message,
                            choices=choices, metavar='')
 message = "Path to output the file at"
 export_parser.add_argument('--output-path', metavar='', help=message)
-
-# Subparser for the Import method
-message = "[DEPRECATED] import a resource from a YAMl or JSON file"
-import_parser = subparsers.add_parser('import', help=message)
-message = "the type of resource"
-import_parser.add_argument('type', choices=["backup"], help=message)
-message = "file containing a job configuration in YAML or JSON format"
-import_parser.add_argument('import-file', nargs='?', help=message)
-message = "provide a backup id to update an existing backup"
-import_parser.add_argument('--id', metavar='', help=message)
-# Add mutual exclusion for the Import method
-group = import_parser.add_mutually_exclusive_group()
-message = "import the metadata when creating a backup"
-group.add_argument('--import-metadata', help=message, action='store_true')
-message = "strip the metadata before updating a backup"
-group.add_argument('--strip-metadata', help=message, action='store_true')
 
 # Subparser for the Dismiss method
 message = "dismiss notifications"

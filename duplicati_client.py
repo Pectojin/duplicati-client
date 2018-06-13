@@ -104,11 +104,20 @@ def main(**args):
         resource_id = args.get("id", None)
         get_resources(data, resource_type, resource_id)
 
-    # Get resources
+    # Describe resources
     if method == "describe":
         resource_type = args.get("type", None)
         resource_id = args.get("id", None)
         describe_resource(data, resource_type, resource_id)
+
+    # Set resource values
+    if method == "set":
+        resource = sys.argv[2]
+        if resource == "password":
+            password = args.get("password", None)
+            disable_login = args.get("disable", False)
+            interactive = args.get("script", True)
+            auth.set_password(data, password, disable_login, interactive)
 
     # Dismiss notifications
     if method == "dismiss":
@@ -163,21 +172,6 @@ def main(**args):
         delete_db = args.get("delete_db", False)
         confirm = args.get("confirm", False)
         delete_resource(data, resource_type, resource_id, confirm, delete_db)
-
-    # Import method
-    if method == "import":
-        message = "DEPRECATED: Consider using Create or Update instead"
-        common.log_output(message, True)
-        import_type = args.get("type", None)
-        import_file = args.get("import-file", None)
-        import_id = args.get("id", None)
-        import_meta = args.get("import_metadata", None)
-        strip_meta = args.get("strip_metadata", False)
-        # Strip meta data is only valid when import_id is specified
-        if import_id is not None and not strip_meta:
-            import_meta = True
-
-        import_resource(data, import_type, import_file, import_id, import_meta)
 
     # Export method
     if method == "export":

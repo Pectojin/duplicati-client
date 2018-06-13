@@ -1,15 +1,20 @@
 # Module for handling authentication against the Duplicati API
 import base64
-import sys
-import datetime
 import common
+import compatibility
+import datetime
 import getpass
 import hashlib
+import json
+import random
 import re
-import compatibility
+import sys
 
-from requests_wrapper import requests_wrapper as requests
 from os.path import expanduser
+from requests_wrapper import requests_wrapper as requests
+
+# Allowed alphabet for generating salts
+ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/"
 
 
 # Login by authenticating against the Duplicati API and extracting a token
@@ -102,13 +107,7 @@ def login(data, input_url=None, password=None, verify=True,
         common.log_output("OK", False, r.status_code)
         token = compatibility.unquote(r.cookies["xsrf-token"])
     elif r.status_code == 200 and login_redirect:
-        # Get password by prompting user if no password was given in-line
-        if password is None and interactive:
-            common.log_output("Authentication required", False, r.status_code)
-            password = getpass.getpass('Password:')
-        elif password is None and not interactive:
-            common.log_output("A password is required required", True)
-            sys.exit(2)
+        password = prompt_password(password, interactive)
 
         common.log_output("Getting nonce and salt...", False)
         baseurl = common.create_baseurl(data, "/login.cgi")
@@ -170,6 +169,49 @@ def logout(data):
     return data
 
 
+# Set server password
+def set_password(data, password=None, disable_login=False, interactive=True):
+    common.verify_token(data)
+
+    if not disable_login:
+        password = prompt_password(password, interactive)
+
+    common.log_output("Setting server password...", False)
+    baseurl = common.create_baseurl(data, "/api/v1/serversettings")
+    cookies = common.create_cookies(data)
+    headers = common.create_headers(data)
+    verify = data.get("server", {}).get("verify", True)
+
+    if disable_login:
+        password = None
+    if password is None:
+        salt = None
+        hashed_password = None
+    else:
+        # Generate a salt
+        salt = ''.join(random.choice(ALPHABET) for i in range(44))
+        # Hash the password and salt
+        salt_password = password.encode() + base64.b64decode(salt)
+        hashed_password = hashlib.sha256(salt_password).digest()
+        hashed_password = base64.b64encode(hashed_password).decode('utf-8')
+
+    payload = json.dumps({
+        'server-passphrase-salt': salt,
+        'server-passphrase': hashed_password,
+        'has-asked-for-password-protection': 'true'
+    })
+
+    r = requests.patch(baseurl, headers=headers, cookies=cookies,
+                       data=payload, verify=verify)
+    common.check_response(data, r.status_code)
+    if r.status_code != 200:
+        message = "Error updating password settings"
+        common.log_output(message, True, r.status_code)
+        return
+
+    common.log_output("Updated password settings", True, 200)
+
+
 # Determine if and how we validate SSL
 def determine_ssl_validation(data, certfile=None, insecure=False):
     if certfile is not None:
@@ -180,3 +222,14 @@ def determine_ssl_validation(data, certfile=None, insecure=False):
         data["server"]["verify"] = True
     common.write_config(data)
     return data["server"]["verify"]
+
+
+# Get password by prompting user if no password was given in-line
+def prompt_password(password, interactive):
+    if password is None and interactive:
+        common.log_output("Authentication required", False)
+        password = getpass.getpass('Password:')
+    elif password is None and not interactive:
+        common.log_output("A password is required required", True)
+        sys.exit(2)
+    return password

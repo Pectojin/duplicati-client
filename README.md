@@ -14,6 +14,7 @@ A client daemon mode will be available eventually, allowing to periodically pull
       * [GNU/Linux and macOS self contained binaries](#gnulinux-and-macos-self-contained-binaries)
    * [Usage](#usage)
    * [Supported commands](#supported-commands)
+   * [Setting the server password](#setting-the-server-password)
    * [Parameters file](#parameters-file)
    * [Export backups](#export-backups)
    * [Create and update backups](#create-and-update-backups)
@@ -90,13 +91,13 @@ Logout when you're done
     list      List all resources of a given type
     get       display breif information on one or many resources
     describe  display detailed information on a specific resource
+    set       set values on resources
     run       run a backup job
     abort     abort a task
     create    create a resource on the server from a YAMl or JSON file
     update    update a resource on the server from a YAMl or JSON file
     delete    delete a backup
     export    export a resource from the server to YAMl or JSON format
-    import    import a resource to the server from a YAMl or JSON file
     dismiss   dismiss notifications
     logs      display the logs for a given job
     login     log into a Duplicati server
@@ -108,6 +109,19 @@ Logout when you're done
     params    import parameters from a YAML file
 
 Some of the commands are placeholders until I get them implemented.
+
+# Setting the server password
+It's possible to configure a server password using the `set password` command. 
+
+    duc set password
+
+It will prompt for the new password and configure it on the server. You can also provide it inline using `--password` or using a parameters file.
+
+You can disable the password using `--disable`
+
+    duc set password --disable
+
+Additionally, the `set password` command will remove the `password-protection` prompt ("If your machine is in a multi-user environment..."), so if you just want to pre-configure a system to remove that message you can make the `--disable` call to remove this message.
 
 # Parameters file
 Using the command `params` you can specify a parameters file. With this file you can provide most of the optional CLI arguments without having to specify them inline when calling your commands.
