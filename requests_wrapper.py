@@ -107,3 +107,25 @@ class requests_wrapper():
         except Exception:
             dummy = Dummy()
             return dummy
+
+    def patch(baseurl, headers=None, cookies=None, params=None,
+              data=None, files=None, allow_redirects=True, verify=True):
+        try:
+            r = requests.patch(baseurl, headers=headers, cookies=cookies,
+                               params=params, data=data, files=files,
+                               allow_redirects=allow_redirects, verify=verify)
+            return r
+        except requests.exceptions.SSLError:
+            dummy = Dummy()
+            dummy.status_code = 526
+            return dummy
+        except requests.exceptions.ConnectionError:
+            dummy = Dummy()
+            return dummy
+        except OSError:
+            dummy = Dummy()
+            dummy.status_code = 495
+            return dummy
+        except Exception:
+            dummy = Dummy()
+            return dummy
