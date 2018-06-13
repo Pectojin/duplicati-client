@@ -1,5 +1,12 @@
 # Duplicati client
-Version 0.3.9 beta
+Version 0.3.12 beta
+
+## 0.3.12 beta (b25d8a7)
+Added a 'set password' command allowing to enable or disable the server password and removing the 'password-protection' prompt on new installations
+
+Updated the requests wrapper to incldue a patch method
+
+Removed the deprecated 'import' command
 
 ## 0.3.9 beta (dbcbfed)
 Fixed a namespacing issue preventing the client binary from running on windows
