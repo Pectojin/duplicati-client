@@ -78,6 +78,8 @@ def login(data, input_url=None, password=None, verify=True,
             basic_pass = getpass.getpass('Basic password:')
         elif basic_pass is None and password is not None:
             basic_pass = password
+        elif basic_pass and password:
+            pass
         else:
             common.log_output("A password is required required", True)
             sys.exit(2)
