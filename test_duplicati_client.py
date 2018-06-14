@@ -199,7 +199,8 @@ class TestLogin(unittest.TestCase):
 
         try:
             auth = login(data, input_url=None, password='1234', verify=True,
-                         interactive=False, basic_user='duplicati', basic_pass='1234')
+                         interactive=False, basic_user='duplicati',
+                         basic_pass='1234')
             self.assertEqual(auth, True)
         finally:
             pass
