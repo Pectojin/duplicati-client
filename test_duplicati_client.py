@@ -6,8 +6,6 @@ import requests
 
 
 class TestLogin(unittest.TestCase):
-    def mock_check_response(self, mock_check_response):
-        pass
 
     def mock_write_config(self):
         pass
@@ -20,7 +18,7 @@ class TestLogin(unittest.TestCase):
                 self.url = url
                 self.cookies = cookies
 
-        if args[0] == 'http://duplicati_proxy:8200':
+        if args[0] == 'http://duplicati_proxy:80':
             headers = {'Server': 'nginx/1.13.8',
                        'Date': 'Wed, 13 Jun 2018 18:28:32 GMT',
                        'Content-Type': 'text/html',
@@ -29,7 +27,9 @@ class TestLogin(unittest.TestCase):
                        'WWW-Authenticate':
                        'Basic realm="Restricted duplicati.test.net"'
                        }
-            return MockResponse(200, headers, args[0])
+            cookies = {"xsrf-token":
+                       "sF02%2FyeH5oXieSAB%2FCRf4bsZuR1UHQGx5wmceEacWlg%3D"}
+            return MockResponse(200, headers, args[0], cookies)
         elif args[0] == 'http://localhost:8200':
             headers = {'Cache-Control': 'max-age=86400',
                        'Last-modified': 'Mon, 02 Apr 2018 12:00:08 GMT',
@@ -52,7 +52,7 @@ class TestLogin(unittest.TestCase):
                 self.url = url + "/login.html"
                 self.cookies = cookies
 
-        if args[0] == 'http://duplicati_proxy:8200':
+        if args[0] == 'http://duplicati_proxy:80':
             headers = {'Server': 'nginx/1.13.8',
                        'Date': 'Wed, 13 Jun 2018 18:28:32 GMT',
                        'Content-Type': 'text/html',
@@ -115,11 +115,10 @@ class TestLogin(unittest.TestCase):
                     'Salt': 'H9euyRJMYftnoDGro2TC4tEMsQ/BCpZ5dVSBRN1cDC4='}
             return MockResponse(200, headers, args[0], cookies, json)
 
-    @patch('common.check_response', side_effect=mock_check_response)
     @patch('requests.get', side_effect=mock_requests_get)
     @patch('common.write_config', side_effect=mock_write_config)
-    def test_integrated_auth_logged_in(self, mock_check_response,
-                                       mock_requests_get, mock_write_config):
+    def test_integrated_auth_logged_in(self, mock_requests_get,
+                                       mock_write_config):
         """This test case validates that login works when no
            login redirect happens"""
         data = {
@@ -143,12 +142,10 @@ class TestLogin(unittest.TestCase):
         finally:
             pass
 
-    @patch('common.check_response', side_effect=mock_check_response)
     @patch('requests.get', side_effect=mock_requests_get_redirect)
     @patch('common.write_config', side_effect=mock_write_config)
     @patch('requests.post', side_effect=mock_requests_post)
-    def test_integrated_auth_not_logged_in(self, mock_check_response,
-                                           mock_requests_get,
+    def test_integrated_auth_not_logged_in(self, mock_requests_get,
                                            mock_write_config,
                                            mock_requests_post
                                            ):
@@ -172,6 +169,37 @@ class TestLogin(unittest.TestCase):
         try:
             auth = login(data, input_url=None, password='1234', verify=True,
                          interactive=False, basic_user=None, basic_pass=None)
+            self.assertEqual(auth, True)
+        finally:
+            pass
+
+    @patch('requests.get', side_effect=mock_requests_get)
+    @patch('common.write_config', side_effect=mock_write_config)
+    @patch('requests.post', side_effect=mock_requests_post)
+    def test_basic_auth_not_logged_in(self, mock_requests_get,
+                                      mock_write_config,
+                                      mock_requests_post
+                                      ):
+        """This test case validates that login works when
+           login redirect happens"""
+        data = {
+            "last_login": None,
+            "parameters_file": None,
+            "server": {
+                "port": "80",
+                "protocol": "http",
+                "url": "duplicati_proxy",
+                "verify": True
+                },
+            'token': None,
+            'token_expires': None,
+            'verbose': False,
+            'authorization': ''
+            }
+
+        try:
+            auth = login(data, input_url=None, password='1234', verify=True,
+                         interactive=False, basic_user='duplicati', basic_pass='1234')
             self.assertEqual(auth, True)
         finally:
             pass
