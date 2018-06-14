@@ -87,7 +87,7 @@ def login(data, input_url=None, password=None, verify=True,
         # Create the authorization string
         basic_auth = "Basic " + secret.decode('utf-8')
         headers = {"Authorization": basic_auth}
-        r = requests.get(baseurl, verify=verify,
+        r = requests.get(baseurl, verify=verify, headers=headers,
                          allow_redirects=True)
         common.check_response(data, r.status_code)
         if r.status_code == 200:
@@ -114,9 +114,11 @@ def login(data, input_url=None, password=None, verify=True,
         baseurl = common.create_baseurl(data, "/login.cgi")
         headers = common.create_headers(data)
         payload = {'get-nonce': 1}
-        r = requests.post(baseurl, data=payload, verify=verify)
+        r = requests.post(baseurl, headers=headers, data=payload,
+                          verify=verify)
         if r.status_code != 200:
-            common.log_output("Error getting salt from server", True, r.status_code)
+            common.log_output("Error getting salt from server", True,
+                              r.status_code)
             sys.exit(2)
 
         salt = r.json()["Salt"]
@@ -136,12 +138,13 @@ def login(data, input_url=None, password=None, verify=True,
             "xsrf-token": token,
             "session-nonce": data.get("nonce", "")
         }
-        r = requests.post(baseurl, data=payload,
+        r = requests.post(baseurl, headers=headers, data=payload,
                           cookies=cookies, verify=verify)
         common.check_response(data, r.status_code)
         if r.status_code == 200:
             common.log_output("Connected", False, r.status_code)
-            data["session-auth"] = compatibility.unquote(r.cookies["session-auth"])
+            data["session-auth"] = compatibility.unquote(
+                                        r.cookies["session-auth"])
         else:
             message = "Error authenticating against the server"
             common.log_output(message, True, r.status_code)

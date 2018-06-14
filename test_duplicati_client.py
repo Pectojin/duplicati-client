@@ -4,6 +4,7 @@ from auth import login
 import common
 import requests
 
+
 class TestLogin(unittest.TestCase):
     def mock_check_response(self, mock_check_response):
         pass
@@ -21,11 +22,12 @@ class TestLogin(unittest.TestCase):
 
         if args[0] == 'http://duplicati_proxy:8200':
             headers = {'Server': 'nginx/1.13.8',
-                                       'Date': 'Wed, 13 Jun 2018 18:28:32 GMT',
-                                       'Content-Type': 'text/html',
-                                       'Content-Length': '195',
-                                       'Connection': 'keep-alive',
-                                       'WWW-Authenticate': 'Basic realm="Restricted sabnzbd.n0rmality.net"'
+                       'Date': 'Wed, 13 Jun 2018 18:28:32 GMT',
+                       'Content-Type': 'text/html',
+                       'Content-Length': '195',
+                       'Connection': 'keep-alive',
+                       'WWW-Authenticate':
+                       'Basic realm="Restricted duplicati.test.net"'
                        }
             return MockResponse(200, headers, args[0])
         elif args[0] == 'http://localhost:8200':
@@ -37,7 +39,8 @@ class TestLogin(unittest.TestCase):
                        'Server': 'Tiny WebServer',
                        'Keep-Alive': 'timeout=20, max=400',
                        'Connection': 'Keep-Alive'}
-            cookies = {"xsrf-token": "sF02%2FyeH5oXieSAB%2FCRf4bsZuR1UHQGx5wmceEacWlg%3D"}
+            cookies = {"xsrf-token":
+                       "sF02%2FyeH5oXieSAB%2FCRf4bsZuR1UHQGx5wmceEacWlg%3D"}
             return MockResponse(200, headers, args[0], cookies)
 
     def mock_requests_get_redirect(*args, **kwargs):
@@ -51,11 +54,12 @@ class TestLogin(unittest.TestCase):
 
         if args[0] == 'http://duplicati_proxy:8200':
             headers = {'Server': 'nginx/1.13.8',
-                                       'Date': 'Wed, 13 Jun 2018 18:28:32 GMT',
-                                       'Content-Type': 'text/html',
-                                       'Content-Length': '195',
-                                       'Connection': 'keep-alive',
-                                       'WWW-Authenticate': 'Basic realm="Restricted sabnzbd.n0rmality.net"'
+                       'Date': 'Wed, 13 Jun 2018 18:28:32 GMT',
+                       'Content-Type': 'text/html',
+                       'Content-Length': '195',
+                       'Connection': 'keep-alive',
+                       'WWW-Authenticate':
+                       'Basic realm="Restricted duplicati.test.net"'
                        }
             return MockResponse(200, headers, args[0])
         elif args[0] == 'http://localhost:8200':
@@ -67,7 +71,8 @@ class TestLogin(unittest.TestCase):
                        'Server': 'Tiny WebServer',
                        'Keep-Alive': 'timeout=20, max=400',
                        'Connection': 'Keep-Alive'}
-            cookies = {"xsrf-token": "sF02%2FyeH5oXieSAB%2FCRf4bsZuR1UHQGx5wmceEacWlg%3D"}
+            cookies = {"xsrf-token":
+                       "sF02%2FyeH5oXieSAB%2FCRf4bsZuR1UHQGx5wmceEacWlg%3D"}
             return MockResponse(200, headers, args[0], cookies)
 
     def mock_requests_post(*args, **kwargs):
@@ -82,14 +87,14 @@ class TestLogin(unittest.TestCase):
             def json(self):
                 return self.json_raw
 
-
         if args[0] == 'http://duplicati_proxy:8200':
             headers = {'Server': 'nginx/1.13.8',
-                                       'Date': 'Wed, 13 Jun 2018 18:28:32 GMT',
-                                       'Content-Type': 'text/html',
-                                       'Content-Length': '195',
-                                       'Connection': 'keep-alive',
-                                       'WWW-Authenticate': 'Basic realm="Restricted sabnzbd.n0rmality.net"'
+                       'Date': 'Wed, 13 Jun 2018 18:28:32 GMT',
+                       'Content-Type': 'text/html',
+                       'Content-Length': '195',
+                       'Connection': 'keep-alive',
+                       'WWW-Authenticate':
+                       'Basic realm="Restricted duplicati.test.net"'
                        }
             return MockResponse(200, headers, args[0])
         elif args[0] == 'http://localhost:8200/login.cgi':
@@ -101,18 +106,22 @@ class TestLogin(unittest.TestCase):
                        'Server': 'Tiny WebServer',
                        'Keep-Alive': 'timeout=20, max=400',
                        'Connection': 'Keep-Alive'}
-            cookies = {"xsrf-token": "sF02%2FyeH5oXieSAB%2FCRf4bsZuR1UHQGx5wmceEacWlg%3D",
-                       "session-auth": "63bgjHEmpOrQuZS2ubupqBiB5mJeU9A3yQWbSQql1n0"}
+            cookies = {"xsrf-token":
+                       "sF02%2FyeH5oXieSAB%2FCRf4bsZuR1UHQGx5wmceEacWlg%3D",
+                       "session-auth":
+                       "63bgjHEmpOrQuZS2ubupqBiB5mJeU9A3yQWbSQql1n0"}
             json = {'Status': 'OK',
                     'Nonce': 'rK44ZOGiWJKk+aDluN/b60MlwXGbQcRc9SnuxSHv784=',
                     'Salt': 'H9euyRJMYftnoDGro2TC4tEMsQ/BCpZ5dVSBRN1cDC4='}
             return MockResponse(200, headers, args[0], cookies, json)
+
     @patch('common.check_response', side_effect=mock_check_response)
     @patch('requests.get', side_effect=mock_requests_get)
     @patch('common.write_config', side_effect=mock_write_config)
-
-    def test_integrated_auth_logged_in(self, mock_check_response, mock_requests_get, mock_write_config):
-        """This test case validates that login works when no login redirect happens"""
+    def test_integrated_auth_logged_in(self, mock_check_response,
+                                       mock_requests_get, mock_write_config):
+        """This test case validates that login works when no
+           login redirect happens"""
         data = {
             "last_login": None,
             "parameters_file": None,
@@ -138,8 +147,13 @@ class TestLogin(unittest.TestCase):
     @patch('requests.get', side_effect=mock_requests_get_redirect)
     @patch('common.write_config', side_effect=mock_write_config)
     @patch('requests.post', side_effect=mock_requests_post)
-    def test_integrated_auth_not_logged_in(self, mock_check_response, mock_requests_get, mock_write_config, mock_requests_post):
-        """This test case validates that login works when login redirect happens"""
+    def test_integrated_auth_not_logged_in(self, mock_check_response,
+                                           mock_requests_get,
+                                           mock_write_config,
+                                           mock_requests_post
+                                           ):
+        """This test case validates that login works when
+           login redirect happens"""
         data = {
             "last_login": None,
             "parameters_file": None,
@@ -161,6 +175,8 @@ class TestLogin(unittest.TestCase):
             self.assertEqual(auth, True)
         finally:
             pass
+
+
 class TestResponse(unittest.TestCase):
     def setUp(self):
         self.data = {
@@ -210,10 +226,12 @@ class TestResponse(unittest.TestCase):
         finally:
             pass
 
+
 class TestResponse200(unittest.TestCase):
-    #mocking the write_config function
+    # mocking the write_config function
     def mock_write_config(self):
         pass
+
     @patch('common.write_config', side_effect=mock_write_config)
     def test_response_200(self, write_config):
         data = {
@@ -231,4 +249,3 @@ class TestResponse200(unittest.TestCase):
             'authorization': ''
             }
         common.check_response(data, 200)
-
