@@ -1,7 +1,18 @@
 # Duplicati client
-Version 0.3.12 beta
+Version 0.3.16 beta
+
+## 0.3.16 beta (ad809c7)
+
+Fixed an issue with authentication affecting some platforms, such as Alpine Linux, thanks to @mjmayer
+
+Fixed an edge case with the client exiting when both basic auth and duplicati password was provided, thanks to @mjmayer
+
+Unit tests of the login and check_response methods, thanks to @mjmayer
+
+Small update the the build scripts for MacOS and Linux
 
 ## 0.3.12 beta (b25d8a7)
+
 Added a 'set password' command allowing to enable or disable the server password and removing the 'password-protection' prompt on new installations
 
 Updated the requests wrapper to incldue a patch method
@@ -9,6 +20,7 @@ Updated the requests wrapper to incldue a patch method
 Removed the deprecated 'import' command
 
 ## 0.3.9 beta (dbcbfed)
+
 Fixed a namespacing issue preventing the client binary from running on windows
 
 ## 0.3.8 beta (da02b4a)

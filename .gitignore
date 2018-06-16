@@ -1,3 +1,8 @@
 .vscode/
 venv/
 __pycache__
+*.pyc
+.DS_STORE
+scripts/build
+scripts/dist
+scripts/releases
