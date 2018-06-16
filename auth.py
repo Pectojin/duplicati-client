@@ -83,6 +83,8 @@ def login(data, input_url=None, password=None, verify=True,
             basic_pass = getpass.getpass('Basic password:')
         elif basic_pass is None and password is not None:
             basic_pass = password
+        elif basic_pass and password:
+            pass
         else:
             common.log_output("A password is required required", True)
             sys.exit(2)
@@ -113,9 +115,11 @@ def login(data, input_url=None, password=None, verify=True,
         baseurl = common.create_baseurl(data, "/login.cgi")
         headers = common.create_headers(data)
         payload = {'get-nonce': 1}
-        r = requests.post(baseurl, headers=headers, data=payload, verify=verify)
+        r = requests.post(baseurl, headers=headers, data=payload,
+                          verify=verify)
         if r.status_code != 200:
-            common.log_output("Error getting salt from server", True, r.status_code)
+            common.log_output("Error getting salt from server", True,
+                              r.status_code)
             sys.exit(2)
 
         salt = r.json()["Salt"]
@@ -140,7 +144,8 @@ def login(data, input_url=None, password=None, verify=True,
         common.check_response(data, r.status_code)
         if r.status_code == 200:
             common.log_output("Connected", False, r.status_code)
-            data["session-auth"] = compatibility.unquote(r.cookies["session-auth"])
+            data["session-auth"] = compatibility.unquote(
+                                        r.cookies["session-auth"])
         else:
             message = "Error authenticating against the server"
             common.log_output(message, True, r.status_code)

@@ -112,13 +112,15 @@ def create_cookies(data):
 
 # Common function for creating headers to authenticate against the API
 def create_headers(data):
-    headers = {
-        "X-XSRF-TOKEN": data.get("token", "")
-    }
-
+    if data.get("token", None):
+        headers = {
+            "X-XSRF-TOKEN": data.get("token", "")
+        }
+    else:
+        headers = None
     # Add a basic auth header if available
-    basic_auth = data.get('authorization', None)
-    if basic_auth is not None:
+    basic_auth = data.get('authorization', '')
+    if basic_auth is not '':
         headers["Authorization"] = basic_auth
 
     return headers
