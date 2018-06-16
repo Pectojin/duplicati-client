@@ -13,8 +13,11 @@ if [ ! -d "build" ]; then
 	rm -rf build
 fi
 
+pyinstaller=$(which pyinstaller)
+echo "Pyinstaller path: " $pyinstaller
+
 echo "Building binary..."
-/usr/local/bin/pyinstaller -F ../duplicati_client.py --log-level=WARN
+eval "$($pyinstaller -F ../duplicati_client.py --log-level=WARN)"
 echo "Pyinstaller exit code: " $?
 
 # Get version number of code
