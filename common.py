@@ -217,7 +217,7 @@ def info():
 Connect to Duplicati remotely or locally and manage them through the CLI.
 
 To begin log into a server:
-    duplicati login https://my.duplicati.server
+    duc login https://my.duplicati.server
 
 or see --help to see information on usage
 """
