@@ -977,15 +977,21 @@ def toggle_verbose(data, mode=None):
 
 # Print the status to stdout
 def display_status(data):
-    message = "Application version: " + config.APPLICATION_VERSION
+    server_activity, backup_id = fetch_progress_state(data)
+    message = "Server status: "
+    if server_activity.get("OverallProgress", 1) != 1:
+        message += server_activity.get("Phase", None)
+        message += " on backup " + backup_id
+    else:
+        message += "Idle"
     common.log_output(message, True)
 
-    message = "Config file: " + config.CONFIG_FILE
+    message = "Config file  : " + config.CONFIG_FILE
     common.log_output(message, True)
 
     if data.get("parameters_file", None) is not None:
         param_file = data.get("parameters_file", "")
-        message = "Params file: " + param_file
+        message = "Params file  : " + param_file
         common.log_output(message, True)
 
     token = data.get("token", None)
@@ -996,11 +1002,11 @@ def display_status(data):
 
     if data.get("last_login", None) is not None:
         last_login = data.get("last_login", "")
-        message = "Logged in  : " + helper.format_time(last_login)
+        message = "Logged in    : " + helper.format_time(last_login)
         common.log_output(message, True)
 
     if token_expires is not None:
-        message = "Expiration : " + helper.format_time(token_expires)
+        message = "Expiration   : " + helper.format_time(token_expires)
         common.log_output(message, True)
 
 
