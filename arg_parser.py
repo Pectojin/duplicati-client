@@ -144,6 +144,12 @@ repair_parser = subparsers.add_parser('repair', help=message)
 message = "backup database to repair"
 repair_parser.add_argument('id', help=message)
 
+# Subparser for the Verify method
+message = "verify remote backup data"
+repair_parser = subparsers.add_parser('verify', help=message)
+message = "backup to verify"
+repair_parser.add_argument('id', help=message)
+
 # Subparser for the Dismiss method
 message = "dismiss notifications"
 dismiss_parser = subparsers.add_parser('dismiss', help=message)
@@ -217,7 +223,7 @@ config_parser.add_argument('--overwrite', action='store_true',
 # subparsers.add_parser('daemon', help=message)
 
 # Subparser for toggling verbose mode
-message = "Change between normal and verbose mode"
+message = "change between normal and verbose mode"
 verbose_parser = subparsers.add_parser('verbose', help=message)
 choices = ["enable", "disable"]
 verbose_parser.add_argument('mode', nargs='?', choices=choices)

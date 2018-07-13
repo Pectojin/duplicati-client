@@ -125,6 +125,11 @@ def main(**args):
         backup_id = args.get("id", None)
         repair_database(data, backup_id)
 
+    # Verify remote data files
+    if method == "verify":
+        backup_id = args.get("id", None)
+        verify_remote_files(data, backup_id)
+
     # Dismiss notifications
     if method == "dismiss":
         resource_id = args.get("id", "all")
@@ -918,6 +923,25 @@ def repair_database(data, backup_id):
         common.log_output(message, True, r.status_code)
         return
     common.log_output("Initialized database repair", True, 200)
+
+
+# Verify the remote data files
+def verify_remote_files(data, backup_id):
+    common.verify_token(data)
+
+    baseurl = common.create_baseurl(data, "/api/v1/backup/" +
+                                    backup_id + "/verify")
+    cookies = common.create_cookies(data)
+    headers = common.create_headers(data)
+    verify = data.get("server", {}).get("verify", True)
+    r = requests.post(baseurl, headers=headers, cookies=cookies,
+                      verify=verify)
+    common.check_response(data, r.status_code)
+    if r.status_code != 200:
+        message = "Failed to initialize remote file verification"
+        common.log_output(message, True, r.status_code)
+        return
+    common.log_output("Initialized remote file verification", True, 200)
 
 
 # Call the API to delete a notification
