@@ -89,7 +89,8 @@ update_parser.add_argument('id', help=message)
 message = "file containing a job configuration in YAML or JSON format"
 update_parser.add_argument('import-file', nargs='?', help=message)
 message = "strip metadata before updating the resource"
-update_parser.add_argument('--strip-metadata', help=message, action='store_true')
+update_parser.add_argument('--strip-metadata', help=message,
+                           action='store_true')
 
 # Subparser for the Delete method
 message = "delete a resource on the server"
