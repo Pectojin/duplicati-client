@@ -130,6 +130,11 @@ def main(**args):
         backup_id = args.get("id", None)
         verify_remote_files(data, backup_id)
 
+    # Compact remote data
+    if method == "compact":
+        backup_id = args.get("id", None)
+        compact_remote_files(data, backup_id)
+
     # Dismiss notifications
     if method == "dismiss":
         resource_id = args.get("id", "all")
@@ -542,7 +547,8 @@ def backup_filter(json_input):
                 "Task ID": progress_state.get("TaskID", -1),
             }
             if speed > 0:
-                progress["Backend"]["Speed"] = helper.format_bytes(speed) + "/s"
+                readable_speed = helper.format_bytes(speed) + "/s"
+                progress["Backend"]["Speed"] = readable_speed
 
             # Display item only if relevant
             if not progress_state.get("StillCounting", False):
@@ -552,7 +558,8 @@ def backup_filter(json_input):
             total_file_count = progress_state.get("TotalFileCount", 0)
             processing = state == "Backup_ProcessingFiles"
             if file_count > 0 and total_file_count > 0 and processing:
-                processed = "{0:.2f}".format(file_count / total_file_count * 100)
+                processed = "{0:.2f}".format(file_count /
+                                             total_file_count * 100)
                 progress["Processed files"] = processed + "%"
             # Avoid 0 division
             data_size = progress_state.get("ProcessedFileSize", 0)
@@ -562,7 +569,8 @@ def backup_filter(json_input):
                 # Calculate percentage
                 processed = "{0:.2f}".format(data_size / total_data_size * 100)
                 # Format text "x% (y GB of z GB)"
-                processed += "% (" + str(helper.format_bytes(data_size)) + " of "
+                processed += "% (" + str(helper.format_bytes(data_size))
+                processed += " of "
                 processed += str(helper.format_bytes(total_data_size)) + ")"
                 progress["Processed data"] = processed
             # Avoid 0 division
@@ -908,29 +916,34 @@ def delete_database(data, backup_id, confirm=False, recreate=False):
 
 # Repair the database
 def repair_database(data, backup_id):
-    common.verify_token(data)
-
-    baseurl = common.create_baseurl(data, "/api/v1/backup/" +
-                                    backup_id + "/repair")
-    cookies = common.create_cookies(data)
-    headers = common.create_headers(data)
-    verify = data.get("server", {}).get("verify", True)
-    r = requests.post(baseurl, headers=headers, cookies=cookies,
-                      verify=verify)
-    common.check_response(data, r.status_code)
-    if r.status_code != 200:
-        message = "Failed to initialize database repair"
-        common.log_output(message, True, r.status_code)
-        return
-    common.log_output("Initialized database repair", True, 200)
+    url = "/api/v1/backup/" + backup_id + "/repair"
+    fail_message = "Failed to initialize database repair"
+    success_message = "Initialized database repair"
+    call_backup_subcommand(data, url, fail_message, success_message)
 
 
 # Verify the remote data files
 def verify_remote_files(data, backup_id):
+    url = "/api/v1/backup/" + backup_id + "/verify"
+    fail_message = "Failed to initialize remote file verification"
+    success_message = "Initialized remote file verification"
+    call_backup_subcommand(data, url, fail_message, success_message)
+
+
+# Compact the remote data files
+def compact_remote_files(data, backup_id):
+    url = "/api/v1/backup/" + backup_id + "/compact"
+    fail_message = "Failed to initialize remote data compaction"
+    success_message = "Initialized remote file compaction"
+    call_backup_subcommand(data, url, fail_message, success_message)
+
+
+# Method for calling various subcommands for backups
+# E.g. "/api/v1/backup/id/compact"
+def call_backup_subcommand(data, url, fail_message, success_message):
     common.verify_token(data)
 
-    baseurl = common.create_baseurl(data, "/api/v1/backup/" +
-                                    backup_id + "/verify")
+    baseurl = common.create_baseurl(data, url)
     cookies = common.create_cookies(data)
     headers = common.create_headers(data)
     verify = data.get("server", {}).get("verify", True)
@@ -938,10 +951,9 @@ def verify_remote_files(data, backup_id):
                       verify=verify)
     common.check_response(data, r.status_code)
     if r.status_code != 200:
-        message = "Failed to initialize remote file verification"
-        common.log_output(message, True, r.status_code)
+        common.log_output(fail_message, True, r.status_code)
         return
-    common.log_output("Initialized remote file verification", True, 200)
+    common.log_output(success_message, True, 200)
 
 
 # Call the API to delete a notification

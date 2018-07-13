@@ -150,6 +150,13 @@ repair_parser = subparsers.add_parser('verify', help=message)
 message = "backup to verify"
 repair_parser.add_argument('id', help=message)
 
+# Subparser for the Compact method
+message = "compact remote backup data"
+repair_parser = subparsers.add_parser('compact', help=message)
+message = "backup to compact"
+repair_parser.add_argument('id', help=message)
+
+
 # Subparser for the Dismiss method
 message = "dismiss notifications"
 dismiss_parser = subparsers.add_parser('dismiss', help=message)
