@@ -120,6 +120,11 @@ def main(**args):
             interactive = args.get("script", True)
             auth.set_password(data, password, disable_login, interactive)
 
+    # Repair a database
+    if method == "repair":
+        backup_id = args.get("id", None)
+        repair_database(data, backup_id)
+
     # Dismiss notifications
     if method == "dismiss":
         resource_id = args.get("id", "all")
@@ -172,7 +177,9 @@ def main(**args):
         resource_type = args.get("type", None)
         delete_db = args.get("delete_db", False)
         confirm = args.get("confirm", False)
-        delete_resource(data, resource_type, resource_id, confirm, delete_db)
+        recreate = args.get("recreate", False)
+        delete_resource(data, resource_type, resource_id,
+                        confirm, delete_db, recreate)
 
     # Export method
     if method == "export":
@@ -189,6 +196,8 @@ def list_resources(data, resource):
 
     if resource == "backups":
         resource_list = fetch_backup_list(data)
+    elif resource == "databases":
+        resource_list = fetch_database_list(data)
     else:
         resource_list = fetch_resource_list(data, resource)
 
@@ -218,6 +227,43 @@ def fetch_backup_list(data):
         backup_list.append(backup)
 
     return backup_list
+
+
+# Fetch all databases
+def fetch_database_list(data):
+    databases = fetch_resource_list(data, "backups")
+
+    database_list = []
+    for backup in databases:
+        db_path = backup.get("Backup", {}).get("DBPath", "")
+        db_exists = validate_database_exists(data, db_path)
+        database = {
+            "Backup": backup.get("Backup", {}).get("Name", 0),
+            "DBPath": db_path,
+            "ID": backup.get("Backup", {}).get("ID", 0),
+            "Exists": db_exists
+        }
+        database_list.append(database)
+
+    return database_list
+
+
+# Validate that the database exists on the server
+def validate_database_exists(data, db_path):
+    common.verify_token(data)
+
+    # api/v1/filesystem/validate
+    baseurl = common.create_baseurl(data, "/api/v1/filesystem/validate")
+    cookies = common.create_cookies(data)
+    headers = common.create_headers(data)
+    payload = {'path': db_path}
+    verify = data.get("server", {}).get("verify", True)
+    r = requests.post(baseurl, headers=headers, params=payload,
+                      cookies=cookies, verify=verify)
+    common.check_response(data, r.status_code)
+    if r.status_code != 200:
+        return False
+    return True
 
 
 # Fetch all resources of a certain type
@@ -768,9 +814,11 @@ def abort_task(data, task_id):
 
 # Delete wrapper
 def delete_resource(data, resource_type, resource_id,
-                    confirm=False, delete_db=False):
+                    confirm=False, delete_db=False, recreate=False):
     if resource_type == "backup":
         delete_backup(data, resource_id, confirm, delete_db)
+    elif resource_type == "database":
+        delete_database(data, resource_id, confirm, recreate)
     elif resource_type == "notification":
         delete_notification(data, resource_id)
 
@@ -808,6 +856,62 @@ def delete_backup(data, backup_id, confirm=False, delete_db=False):
         common.log_output("Error deleting backup", True, r.status_code)
         return
     common.log_output("Backup deleted", True, 200)
+
+
+# Call the API to delete a database
+def delete_database(data, backup_id, confirm=False, recreate=False):
+    common.verify_token(data)
+
+    # Check if the backup exists
+    result = fetch_backups(data, [backup_id], "get")
+    if result is None or len(result) == 0:
+        return
+
+    if not confirm:
+        # Confirm deletion with user
+        name = next(iter(result[0]))
+        message = 'Delete database ' + str(backup_id)
+        message += ' belonging to "' + name + '"?'
+        options = '[y/N]:'
+        agree = input(message + ' ' + options)
+        if agree not in ["Y", "y", "yes", "YES"]:
+            common.log_output("Database not deleted", True)
+            return
+
+    baseurl = common.create_baseurl(data, "/api/v1/backup/" +
+                                    str(backup_id) + "/deletedb")
+    cookies = common.create_cookies(data)
+    headers = common.create_headers(data)
+    verify = data.get("server", {}).get("verify", True)
+
+    r = requests.post(baseurl, headers=headers, cookies=cookies,
+                      verify=verify)
+    common.check_response(data, r.status_code)
+    if r.status_code != 200:
+        common.log_output("Error deleting database", True, r.status_code)
+        return
+    common.log_output("Database deleted", True, 200)
+    if recreate:
+        repair_database(data, backup_id)
+
+
+# Repair the database
+def repair_database(data, backup_id):
+    common.verify_token(data)
+
+    baseurl = common.create_baseurl(data, "/api/v1/backup/" +
+                                    backup_id + "/repair")
+    cookies = common.create_cookies(data)
+    headers = common.create_headers(data)
+    verify = data.get("server", {}).get("verify", True)
+    r = requests.post(baseurl, headers=headers, cookies=cookies,
+                      verify=verify)
+    common.check_response(data, r.status_code)
+    if r.status_code != 200:
+        message = "Failed to initialize database repair"
+        common.log_output(message, True, r.status_code)
+        return
+    common.log_output("Initialized database repair", True, 200)
 
 
 # Call the API to delete a notification

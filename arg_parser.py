@@ -11,6 +11,7 @@ message = "list all resources of a given type"
 list_parser = subparsers.add_parser('list', help=message)
 choices = [
     "backups",
+    "databases",
     "restores",
     "notifications",
     "serversettings",
@@ -91,18 +92,21 @@ message = "strip metadata before updating the resource"
 update_parser.add_argument('--strip-metadata', help=message, action='store_true')
 
 # Subparser for the Delete method
-message = "delete a backup"
+message = "delete a resource on the server"
 delete_parser = subparsers.add_parser('delete', help=message)
-choices = ["backup", "notification"]
+choices = ["backup", "notification", "database"]
 message = "the type of resource"
 delete_parser.add_argument('type', choices=choices, help=message)
-message = "the ID of the backup to delete"
+message = "the ID of the resource to delete"
 delete_parser.add_argument('id', type=int, help=message)
 # message = "delete the local database"
 # delete_parser.add_argument('--delete-db',
 #                            action='store_true', help=message)
 message = "confirm deletion non-interactively"
 delete_parser.add_argument('--confirm',
+                           action='store_true', help=message)
+message = "recreate database after deletion"
+delete_parser.add_argument('--recreate',
                            action='store_true', help=message)
 
 # Subparser for the Edit method
@@ -132,6 +136,12 @@ export_parser.add_argument('--output', help=message,
                            choices=choices, metavar='')
 message = "Path to output the file at"
 export_parser.add_argument('--output-path', metavar='', help=message)
+
+# Subparser for the Repair method
+message = "repair a database"
+repair_parser = subparsers.add_parser('repair', help=message)
+message = "backup database to repair"
+repair_parser.add_argument('id', help=message)
 
 # Subparser for the Dismiss method
 message = "dismiss notifications"
