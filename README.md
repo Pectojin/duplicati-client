@@ -46,29 +46,29 @@ Currently the script relies on multiple external libraries:
 ## From source
 Clone the repo
 
-    git clone https://github.com/pectojin/duplicati_client
+    git clone https://github.com/pectojin/duplicati-client
 The client runs in either Python 3 or Python 2 but requires the above dependencies
 
     pip3 install -r requirements.txt
 For convenience you can symlink the client
 
-    sudo ln -s /location/of/git/repo/duplicati_client.py /usr/bin/duc
+    sudo ln -s /location/of/git/repo/duplicati-client.py /usr/bin/duc
 On UNIX it should automatically attempt to use Python on your system so now you can just call
 
     duc
 And you're good to go. 
 
 ## Windows self contained binary
-For installation of the Windows self contained binary package I recommend copying it to `C:\Program Files\Duplicati Client` and then adding that path to your [environment variable path](https://www.computerhope.com/issues/ch000549.htm) so that you can call `duplicati_client` from anywhere in your CLI.
+For installation of the Windows self contained binary package I recommend copying it to `C:\Program Files\Duplicati Client` and then adding that path to your [environment variable path](https://www.computerhope.com/issues/ch000549.htm) so that you can call `duplicati-client` from anywhere in your CLI.
 
 ## GNU/Linux and macOS self contained binaries
 Self contained binaries are also available for Linux and macOS. 
 
 These are useful if you cannot or will not install the 3rd party dependencies on your system, or if you experience compatibility problems with your current Python installation.
 
-I recommend copying the binary package to `/opt/duplicati-client` on Linux and `/Applications/Duplicati Client` on macOS. Then symlink the duplicati_client binary
+I recommend copying the binary package to `/opt/duplicati-client` on Linux and `/Applications/Duplicati Client` on macOS. Then symlink the duplicati-client binary
 
-    sudo ln -s /location/of/duplicati_client /usr/bin/duc
+    sudo ln -s /location/of/duplicati-client /usr/bin/duc
 
 # Usage
 To begin log into a server:
@@ -135,11 +135,11 @@ You must create the parameters file yourself. An example of a parameters file:
 
 Then specify that you want to use a parameters file
 
-    duc params ~/.config/duplicati_client/parameters.yml
+    duc params ~/.config/duplicati-client/parameters.yml
 
 This will load your password, set verbose mode, and allow insecure connections by default when you run a command.
 
-    Loaded 3 parameters from ~/.config/duplicati_client/parameters.yml
+    Loaded 3 parameters from ~/.config/duplicati-client/parameters.yml
 
 Then, if you're connecting to a different server, simply override the default password by adding the `--password` argument in the CLI.
 
