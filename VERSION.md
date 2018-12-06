@@ -1,5 +1,19 @@
 # Duplicati client
-Version 0.3.16 beta
+Version 0.4.9 beta
+
+## 0.4.9 beta (fd61f6c)
+
+Fixed an issue where wrong dates were displayed for last backup.
+
+Added support for initializing compact on a backup database
+
+Added support for initializing remote data verification on backup
+
+Added support for listing, deleting, repairing, and recreating backup databases
+
+Added server status to the status command
+
+Made the backup list and get commands only display progress when a backup is running
 
 ## 0.3.16 beta (ad809c7)
 
