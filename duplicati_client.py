@@ -509,11 +509,11 @@ def backup_filter(json_input):
         backup["Versions"] = int(metadata.get("BackupListCount", 0))
         backup["Last run"] = {
             "Duration":
-            helper.format_duration(metadata.get("LastDuration", "0")),
+            helper.format_duration(metadata.get("LastBackupDuration", "0")),
             "Started":
-            helper.format_time(metadata.get("LastStarted", "0")),
+            helper.format_time(metadata.get("LastBackupStarted", "0")),
             "Stopped":
-            helper.format_time(metadata.get("LastFinished", "0")),
+            helper.format_time(metadata.get("LastBackupFinished", "0")),
         }
         backup["Size"] = {
             "Local": metadata.get("SourceSizeString", ""),
