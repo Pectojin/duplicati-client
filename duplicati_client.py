@@ -197,7 +197,8 @@ def main(**args):
         resource_id = args.get("id", None)
         output_type = args.get("output", None)
         path = args.get("output_path", None)
-        export_resource(data, resource_type, resource_id, output_type, path)
+        all_ids = args.get("all", False)
+        export_resource(data, resource_type, resource_id, output_type, path, all_ids)
 
 
 # Function for display a list of resources
@@ -1190,21 +1191,26 @@ def import_backup(data, import_file, backup_id=None, import_meta=None):
 
 
 # Export resource wrapper function
-def export_resource(data, resource, resource_id, output=None, path=None):
+def export_resource(data, resource, resource_id, output=None, path=None, all_ids=False):
     if resource == "backup":
-        export_backup(data, resource_id, output, path)
+        if all_ids:
+            # Get all backup configs
+            backups = fetch_backup_list(data)
+            for backup in backups:
+                export_backup(data, backup, output, path)
+        else:
+            # Get backup config
+            result = fetch_backups(data, [resource_id], "describe")
+            if result is None or len(result) == 0:
+                common.log_output("Could not fetch backup", True)
+                return
+            backup = result[0]
+            export_backup(data, backup, output, path)
 
 
 # Export backup configuration to either YAML or JSON file
-def export_backup(data, backup_id, output=None, path=None):
-    # Get backup config
-    result = fetch_backups(data, [backup_id], "describe")
-    if result is None or len(result) == 0:
-        common.log_output("Could not fetch backup", True)
-        return
-    backup = result[0]
-    # Strip DisplayNames and Progress
-    # backup.pop("DisplayNames", None)
+def export_backup(data, backup, output=None, path=None):
+    # Strip Progress
     backup.pop("Progress", None)
 
     # Fetch server version
@@ -1223,11 +1229,14 @@ def export_backup(data, backup_id, output=None, path=None):
         filetype = ".yml"
 
     # Decide on where to output file
+    timestamp = datetime.datetime.now().strftime("%d.%m.%Y_%I.%M_%p")
+    file_name = backup['Backup']['Name'] + "_" + str(timestamp) + filetype
     if path is None:
-        time = datetime.datetime.now().strftime("%d.%m.%Y_%I.%M_%p")
-        path = "backup_config_" + str(time) + filetype
+        path = file_name
     else:
-        path = expanduser(path)
+        if path[-1] != "/":
+            path += "/"
+        path = os.path.dirname(expanduser(path)) + "/" + file_name
 
     # Check if output folder exists
     directory = os.path.dirname(path)

@@ -125,7 +125,9 @@ choices = ["backup"]
 message = "the type of resource"
 export_parser.add_argument('type', choices=choices, help=message)
 message = "the ID of the resource to export"
-export_parser.add_argument('id', type=int, help=message)
+export_parser.add_argument('id', action='store', nargs='?', type=int, help=message)
+message = "export all backups"
+export_parser.add_argument('--all', action='store_true', help=message)
 choices = [
     "YAML",
     "JSON",
