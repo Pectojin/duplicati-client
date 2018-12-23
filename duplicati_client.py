@@ -102,14 +102,14 @@ def main(**args):
     # Get resources
     if method == "get":
         resource_type = args.get("type", None)
-        resource_id = args.get("id", None)
-        get_resources(data, resource_type, resource_id)
+        resource_ids = args.get("id", None)
+        get_resources(data, resource_type, resource_ids)
 
     # Describe resources
     if method == "describe":
         resource_type = args.get("type", None)
-        resource_id = args.get("id", None)
-        describe_resource(data, resource_type, resource_id)
+        resource_ids = args.get("id", None)
+        describe_resources(data, resource_type, resource_ids)
 
     # Set resource values
     if method == "set":
@@ -362,22 +362,22 @@ def list_filter(json_input, resource):
 
 
 # Get one or more resources with somewhat limited fields
-def get_resources(data, resource_type, resource_id):
+def get_resources(data, resource_type, resource_ids):
     if resource_type == "backup":
-        result = fetch_backups(data, resource_id, "get")
+        result = fetch_backups(data, resource_ids, "get")
     elif resource_type == "notification":
-        result = fetch_notifications(data, resource_id, "get")
+        result = fetch_notifications(data, resource_ids, "get")
 
     message = yaml.safe_dump(result, default_flow_style=False)
     common.log_output(message, True, 200)
 
 
-# Get one resource with all fields
-def describe_resource(data, resource_type, resource_id):
+# Get one or more resources with all fields
+def describe_resources(data, resource_type, resource_ids):
     if resource_type == "backup":
-        result = fetch_backups(data, [resource_id], "describe")
+        result = fetch_backups(data, resource_ids, "describe")
     elif resource_type == "notification":
-        result = fetch_notifications(data, [resource_id], "describe")
+        result = fetch_notifications(data, resource_ids, "describe")
 
     # Must use safe_dump for python 2 compatibility
     message = yaml.safe_dump(result, default_flow_style=False)
@@ -405,7 +405,7 @@ def fetch_notifications(data, notification_ids, method):
 
     for notification in data:
         notification_id = notification.get("ID", -1)
-        if str(notification_id) in notification_ids:
+        if notification_id in notification_ids:
             notification_list.append(notification)
 
     # Only get uses a filter
@@ -458,15 +458,15 @@ def fetch_backups(data, backup_ids, method):
             message = "Error getting backup " + str(backup_id)
             common.log_output(message, True, r.status_code)
             continue
-        data = r.json()["data"]
+        backup = r.json()["data"]
 
-        item_id = data.get("Backup", {}).get("ID", 0)
+        item_id = backup.get("Backup", {}).get("ID", 0)
         if active_id is not None and item_id == active_id and progress != 1:
-            data["Progress"] = progress_state
+            backup["Progress"] = progress_state
         else:
-            data["Progress"] = None
+            backup["Progress"] = None
 
-        backup_list.append(data)
+        backup_list.append(backup)
 
     if len(backup_list) == 0:
         sys.exit(2)

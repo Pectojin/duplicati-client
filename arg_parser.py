@@ -27,7 +27,7 @@ message = "the type of resource"
 choices = ["backup", "notification"]
 get_parser.add_argument('type', choices=choices, help=message)
 message = "one or more ID's to look up"
-get_parser.add_argument('id', nargs='+', help=message)
+get_parser.add_argument('id', nargs='+', type=int, help=message)
 
 # Subparser for the Describe method
 message = "display detailed information on a specific resource"
@@ -39,7 +39,7 @@ choices = [
 ]
 describe_parser.add_argument('type', choices=choices, help=message)
 message = "the ID of the resource to look up"
-describe_parser.add_argument('id', type=int, help=message)
+describe_parser.add_argument('id', nargs='+', type=int, help=message)
 
 # Subparser for the set method
 message = "set values on resources"
