@@ -28,7 +28,7 @@ def validate_config(data):
 
     if not valid:
         message = "Configuration appears to be invalid. "
-        message += "You can re-create it with --overwrite."
+        message += "You can re-create it with 'duc config --overwrite'"
         log_output(message, True)
         sys.exit(2)
 
