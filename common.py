@@ -165,6 +165,12 @@ def check_response(data, status_code):
         log_output(message, True)
         sys.exit(2)
 
+    if status_code == 408:
+        message = "The request timed out. "
+        message += "Is the server running?"
+        log_output(message, True)
+        sys.exit(2)
+
     if status_code == 503:
         message = "Server is not responding. Is it running?"
         log_output(message, True, status_code)
