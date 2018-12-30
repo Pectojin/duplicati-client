@@ -463,8 +463,6 @@ def fetch_backups(data, backup_ids, method):
         item_id = backup.get("Backup", {}).get("ID", 0)
         if active_id is not None and item_id == active_id and progress != 1:
             backup["Progress"] = progress_state
-        else:
-            backup["Progress"] = None
 
         backup_list.append(backup)
 
@@ -492,6 +490,11 @@ def fetch_progress_state(data):
     else:
         progress_state = r.json()
         active_id = progress_state.get("BackupID", -1)
+
+    # Don't show progress on finished tasks
+    phase = progress_state.get("Phase", "")
+    if phase in ["Backup_Complete", "Error"]:
+        return {}, 0
 
     return progress_state, active_id
 
@@ -580,10 +583,6 @@ def backup_filter(json_input):
             if current > 0 and total > 0:
                 backend_progress = "{0:.2f}".format(current / total * 100)
                 progress["Backend"]["Progress"] = backend_progress + "%"
-            # Don't show the backend stats on finished tasks
-            phase = progress_state.get("Phase", "")
-            if phase in ["Backup_Complete", "Error"]:
-                progress.pop("Backend")
             backup["Progress"] = progress
 
         key = {
