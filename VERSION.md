@@ -1,5 +1,19 @@
 # Duplicati client
-Version 0.4.9 beta
+Version 0.4.15 beta
+
+## 0.4.15 beta (72243a2)
+
+Added timeouts on Requests calls to avoid hanging forever on servers not responding
+
+Added an --all option to export
+
+Changed --output-path to specify the directory, but not the name, in order to be compatible with --all
+
+Removed progress info on get and describe commands against backups that have finished to avoid confusion.
+
+Changed describe method to allow providing multiple ID's
+
+Fixed an issue where calling get with multiple ID's broke the duc config
 
 ## 0.4.9 beta (fd61f6c)
 
