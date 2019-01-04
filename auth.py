@@ -162,7 +162,7 @@ def login(data, input_url=None, password=None, verify=True,
     data["last_login"] = datetime.datetime.now()
     common.write_config(data)
     common.log_output("Login successful", True)
-    return True
+    return data
 
 
 # Logout by deleting the token from memory and disk
