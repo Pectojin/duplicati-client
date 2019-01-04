@@ -216,6 +216,12 @@ def verify_token(data):
     sys.exit(2)
 
 
+def ensure_trailing_slash(path):
+    if path[-1] != "/":
+        path += "/"
+    return path
+
+
 # Client intro
 def info():
     return """Duplicati Client
