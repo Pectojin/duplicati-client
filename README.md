@@ -156,9 +156,11 @@ The export command enables building backup configuration files through the CLI. 
 
     duc export backup [id]
 
-By default the client will export YAML, but you can manually specify either with `--output`. Additionally you can specify the output path with `--output-path`.
+By default the client will export YAML, but you can manually specify either with `--output`. Additionally you can specify the output path with `--output-path`. You can also opt to export all backup configs using `--all`.
 
 The resulting file can then be used to create new backup jobs with the import command. Notice that the JSON output is identical to exporting from the Duplicati Web UI, so if you need interoperability use JSON. The YAML file is only understood by this client for now.
+
+Default options defined in settings are not exported with the job configuration.
 
 # Create and update backups
 The Create command allows creating backup jobs from a configuration file. Either a JSON file, as exported from the Duplicati Web UI, or a YAML/JSON file exported from this client. Input files are automatically converted into the JSON format that the Duplicati server requires, so it does not matter which format you import from.
