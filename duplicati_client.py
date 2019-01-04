@@ -1021,6 +1021,9 @@ def toggle_verbose(data, mode=None):
 
 # Print the status to stdout
 def display_status(data):
+    message = "Server       : " + common.create_baseurl(data)
+    common.log_output(message, True)
+
     server_activity, backup_id = fetch_progress_state(data)
     message = "Server status: "
     if server_activity.get("OverallProgress", 1) != 1:

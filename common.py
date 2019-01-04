@@ -127,7 +127,7 @@ def create_headers(data):
 
 
 # Common function for creating a base url
-def create_baseurl(data, additional_path, append_token=False):
+def create_baseurl(data, additional_path="", append_token=False):
     protocol = data["server"]["protocol"]
     url = data["server"]["url"]
     if protocol != "https":
