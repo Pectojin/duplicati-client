@@ -289,7 +289,10 @@ def fetch_resource_list(data, resource):
     verify = data.get("server", {}).get("verify", True)
     r = requests.get(baseurl, headers=headers, cookies=cookies, verify=verify)
     common.check_response(data, r.status_code)
-    if r.status_code != 200:
+    if r.status_code == 404:
+        common.log_output("No entries found", True, r.status_code)
+        sys.exit(2)
+    elif r.status_code != 200:
         common.log_output("Error connecting", True, r.status_code)
         sys.exit(2)
     else:
