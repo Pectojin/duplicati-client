@@ -121,7 +121,7 @@ delete_parser.add_argument('--recreate',
 # Subparser for the Export method
 message = "export a resource from the server to YAMl or JSON format"
 export_parser = subparsers.add_parser('export', help=message)
-choices = ["backup"]
+choices = ["backup", "serversettings"]
 message = "the type of resource"
 export_parser.add_argument('type', choices=choices, help=message)
 message = "the ID of the resource to export"

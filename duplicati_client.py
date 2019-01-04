@@ -348,7 +348,20 @@ def list_filter(json_input, resource):
 
     elif resource == "serversettings":
         for key, value in json_input.items():
-            if key == "update-check-latest":
+            hidden_values = [
+                "update-check-latest",
+                "last-update-check",
+                "is-first-run",
+                "update-check-interval",
+                "server-passphrase",
+                "server-passphrase-salt",
+                "server-passphrase-trayicon",
+                "server-passphrase-trayicon-hash",
+                "unacked-error",
+                "unacked-warning",
+                "has-fixed-invalid-backup-id",
+            ]
+            if key in hidden_values:
                 continue
             setting = {
                 key: {
@@ -1210,11 +1223,15 @@ def export_resource(data, resource, resource_id, output=None,
                 common.log_output("Could not fetch backup", True)
                 return
             backup = result[0]
-            export_backup(data, backup, output, path, timestamp)
+            create_backup_export(data, backup, output, path, timestamp)
+    if resource == "serversettings":
+        result = fetch_resource_list(data, "serversettings")
+        result = list_filter(result, resource)
+        create_resource_export(data, result, "serversettings",
+                               output, path, timestamp)
 
-
-# Export backup configuration to either YAML or JSON file
-def export_backup(data, backup, output=None, path=None, timestamp=False):
+# Export backup configuration to either YAML or JSON
+def create_backup_export(data, backup, output=None, path=None, timestamp=False):
     # Strip Progress
     backup.pop("Progress", None)
 
@@ -1226,7 +1243,12 @@ def export_backup(data, backup, output=None, path=None, timestamp=False):
         sys.exit(2)
 
     backup["CreatedByVersion"] = systeminfo["ServerVersion"]
+    create_resource_export(data, backup, backup['Backup']['Name'], output, path, timestamp)
 
+
+# Export resource configuration to either YAML or JSON
+def create_resource_export(data, resource, name="resource", output=None,
+                            path=None, timestamp=False):
     # YAML or JSON?
     if output in ["JSON", "json"]:
         filetype = ".json"
@@ -1236,9 +1258,9 @@ def export_backup(data, backup, output=None, path=None, timestamp=False):
     # Decide on where to output file
     if timestamp:
         stamp = datetime.datetime.now().strftime("%d.%m.%Y_%I.%M_%p")
-        file_name = backup['Backup']['Name'] + "_" + str(stamp) + filetype
+        file_name = name + "_" + str(stamp) + filetype
     else:
-        file_name = backup['Backup']['Name'] + filetype
+        file_name = name + filetype
 
     if path is None:
         path = file_name
@@ -1259,9 +1281,9 @@ def export_backup(data, backup, output=None, path=None, timestamp=False):
             return
     with open(path, 'w') as file:
         if filetype == ".json":
-            file.write(json.dumps(backup, indent=4, default=str))
+            file.write(json.dumps(resource, indent=4, default=str))
         else:
-            file.write(yaml.dump(backup, default_flow_style=False))
+            file.write(yaml.dump(resource, default_flow_style=False))
     common.log_output("Created " + path, True, 200)
 
 
