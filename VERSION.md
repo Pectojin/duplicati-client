@@ -1,5 +1,17 @@
 # Duplicati client
-Version 0.4.15 beta
+Version 0.4.20 beta
+
+## 0.4.20 beta (346e97c)
+
+Added support for the new Vacuum API command - Thanks @drwtsn32x
+
+Corrected error handling of list command when encountering no entries
+
+Added preliminary support for exporting serversettings
+
+Added server url to status printout
+
+Made timestamp optional in filename when exporting backups
 
 ## 0.4.15 beta (72243a2)
 
