@@ -148,6 +148,12 @@ repair_parser = subparsers.add_parser('repair', help=message)
 message = "backup database to repair"
 repair_parser.add_argument('id', help=message)
 
+# Subparser for the Vacuum method
+message = "vacuum a database"
+repair_parser = subparsers.add_parser('vacuum', help=message)
+message = "backup database to vacuum"
+repair_parser.add_argument('id', help=message)
+
 # Subparser for the Verify method
 message = "verify remote backup data"
 repair_parser = subparsers.add_parser('verify', help=message)
