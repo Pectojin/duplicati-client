@@ -125,6 +125,11 @@ def main(**args):
         backup_id = args.get("id", None)
         repair_database(data, backup_id)
 
+    # Vacuum a database
+    if method == "vacuum":
+        backup_id = args.get("id", None)
+        vacuum_database(data, backup_id)
+
     # Verify remote data files
     if method == "verify":
         backup_id = args.get("id", None)
@@ -937,6 +942,14 @@ def repair_database(data, backup_id):
     url = "/api/v1/backup/" + backup_id + "/repair"
     fail_message = "Failed to initialize database repair"
     success_message = "Initialized database repair"
+    call_backup_subcommand(data, url, fail_message, success_message)
+
+
+# Vacuum the database
+def vacuum_database(data, backup_id):
+    url = "/api/v1/backup/" + backup_id + "/vacuum"
+    fail_message = "Failed to initialize database vacuum"
+    success_message = "Initialized database vacuum"
     call_backup_subcommand(data, url, fail_message, success_message)
 
 
