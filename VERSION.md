@@ -1,5 +1,9 @@
 # Duplicati client
-Version 0.4.20 beta
+Version 0.4.21 beta
+
+## 0.4.21 beta (20c7c27)
+
+Fixed an issue with the client not being able to connect to ports other than 443 when using HTTPS.
 
 ## 0.4.20 beta (346e97c)
 
