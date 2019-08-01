@@ -31,7 +31,7 @@ def main(**args):
         "last_login": None,
         "parameters_file": None,
         "server": {
-            "port": "8200",
+            "port": "",
             "protocol": "http",
             "url": "localhost",
             "verify": True

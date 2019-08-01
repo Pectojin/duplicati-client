@@ -130,10 +130,12 @@ def create_headers(data):
 def create_baseurl(data, additional_path="", append_token=False):
     protocol = data["server"]["protocol"]
     url = data["server"]["url"]
-    if protocol != "https":
-        port = data["server"]["port"]
+    if protocol == "https" and data["server"]["port"] == "":
+        port = "443"
+    elif protocol == "http" and data["server"]["port"] == "":
+        port = "8200"
     else:
-        port = ""
+        port = data["server"]["port"]
     baseurl = protocol + "://" + url + ":" + port + additional_path
     if append_token is True:
         baseurl += "?x-xsrf-token="
