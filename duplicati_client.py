@@ -1231,7 +1231,7 @@ def export_resource(data, resource, resource_id, output=None,
             # Get all backup configs
             backups = fetch_backup_list(data)
             for backup in backups:
-                export_backup(data, backup, output, path, timestamp)
+                create_backup_export(data, backup, output, path, timestamp)
         else:
             # Get backup config
             result = fetch_backups(data, [resource_id], "describe")
