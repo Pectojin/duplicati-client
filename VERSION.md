@@ -1,5 +1,9 @@
 # Duplicati client
-Version 0.4.21 beta
+Version 0.4.22 beta
+
+## 0.4.22 beta (fd37ee4)
+
+Fixed an issue exporting backups with `--all` parameter, Thanks @avmaksimov
 
 ## 0.4.21 beta (20c7c27)
 
