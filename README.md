@@ -23,9 +23,9 @@ A client daemon mode will be available eventually, allowing to periodically pull
 <!--te-->
 
 # Why use Duplicati Client?
-Duplicati ships with a CommandLine tool that is capable of doing various actions like backups, restores, and verifying backend data. 
+Duplicati ships with a CommandLine tool that is capable of doing various actions like backups, restores, and verifying backend data.
 
-However, the Duplicati CommandLine is a separate program. It does not communicate with the Duplicati Server that you interact with when using the web UI. 
+However, the Duplicati CommandLine is a separate program. It does not communicate with the Duplicati Server that you interact with when using the web UI.
 
 This plays out in various ways when trying to manually initiate a backup using the CommandLine tool and the Duplicati server not updating it's metadata or even showing that a backup is happening.
 
@@ -56,13 +56,13 @@ For convenience you can symlink the client
 On UNIX it should automatically attempt to use Python on your system so now you can just call
 
     duc
-And you're good to go. 
+And you're good to go.
 
 ## Windows self contained binary
 For installation of the Windows self contained binary package I recommend copying it to `C:\Program Files\Duplicati Client` and then adding that path to your [environment variable path](https://www.computerhope.com/issues/ch000549.htm) so that you can call `duplicati_client` from anywhere in your CLI.
 
 ## GNU/Linux and macOS self contained binaries
-Self contained binaries are also available for Linux and macOS. 
+Self contained binaries are also available for Linux and macOS.
 
 These are useful if you cannot or will not install the 3rd party dependencies on your system, or if you experience compatibility problems with your current Python installation.
 
@@ -97,7 +97,7 @@ Logout when you're done
     create    create a resource on the server from a YAMl or JSON file
     update    update a resource on the server from a YAMl or JSON file
     delete    delete a backup
-    export    export a resource from the server to YAMl or JSON format
+    export    export a backup from the server to YAMl or JSON format
     dismiss   dismiss notifications
     logs      display the logs for a given job
     login     log into a Duplicati server
@@ -111,7 +111,7 @@ Logout when you're done
 Some of the commands are placeholders until I get them implemented.
 
 # Setting the server password
-It's possible to configure a server password using the `set password` command. 
+It's possible to configure a server password using the `set password` command.
 
     duc set password
 
@@ -129,7 +129,7 @@ Using the command `params` you can specify a parameters file. With this file you
 The parameters file is set once using the `params` command and then automatically loaded on each call.
 
 You must create the parameters file yourself. An example of a parameters file:
-    
+
     password: verysecretpassword
     verbose: True
 
@@ -173,7 +173,7 @@ The Update command allows updating an existing job from a configuration file.
 
     duc update backup [backup_id] [path_to_file]
 
-Duplicati does not currently allow to update a backup configuration without also overwriting the metadata. If your config file was exported a long time ago with old metadata you may not be interested in this. 
+Duplicati does not currently allow to update a backup configuration without also overwriting the metadata. If your config file was exported a long time ago with old metadata you may not be interested in this.
 
 Apply the `--strip-metadata` option to remove the metadata before updating the backup config. This way no metadata will be displayed until the backup job has had a chance to run and provide the correct metadata.
 
@@ -232,15 +232,15 @@ Must return `200` OK or the daemon will retry later
 ## Notes
 The daemon will have a configuration options to override the API url, but anything after `api/` must be present.
 
-To support daemon durability each task is logged into a `task-list.yml` on disk allowing the daemon to recover from crashes. This file is periodically updated with status on each task. 
+To support daemon durability each task is logged into a `task-list.yml` on disk allowing the daemon to recover from crashes. This file is periodically updated with status on each task.
 
-When the daemon fetches the task list it will validate each task and inform the task server whether each task was accepted or rejected. 
+When the daemon fetches the task list it will validate each task and inform the task server whether each task was accepted or rejected.
 
 The daemon may execute a task immediately, skipping the accepted/rejected update.
 
 Items with invalid formatting and items prohibited by policy are rejected.
 
-Once a task has been completed the daemon sends the result to the server and confirms that the server received the data. 
+Once a task has been completed the daemon sends the result to the server and confirms that the server received the data.
 
 The task is then removed from the list local task list.
 
