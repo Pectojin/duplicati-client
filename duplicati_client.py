@@ -198,13 +198,12 @@ def main(**args):
 
     # Export method
     if method == "export":
-        resource_type = args.get("type", None)
         resource_id = args.get("id", None)
         output_type = args.get("output", None)
         path = args.get("output_path", None)
         all_ids = args.get("all", False)
         timestamp = args.get("timestamp", False)
-        export_resource(data, resource_type, resource_id, output_type,
+        export_backup(data, resource_id, output_type,
                         path, all_ids, timestamp)
 
 
@@ -1223,53 +1222,42 @@ def import_backup(data, import_file, backup_id=None, import_meta=None):
     common.log_output("Backup job created", True, 200)
 
 
-# Export resource wrapper function
-def export_resource(data, resource, resource_id, output=None,
-                    path=None, all_ids=False, timestamp=False):
-    if resource == "backup":
-        if all_ids:
-            # Get all backup configs
-            backups = fetch_backup_list(data)
-            for backup in backups:
-                create_backup_export(data, backup, output, path, timestamp)
-        else:
-            # Get backup config
-            result = fetch_backups(data, [resource_id], "describe")
-            if result is None or len(result) == 0:
-                common.log_output("Could not fetch backup", True)
-                return
-            backup = result[0]
-            create_backup_export(data, backup, output, path, timestamp)
-    if resource == "serversettings":
-        result = fetch_resource_list(data, "serversettings")
-        result = list_filter(result, resource)
-        create_resource_export(data, result, "serversettings",
-                               output, path, timestamp)
+# Export backup wrapper function
+def export_backup(data, backup_id, output=None, path=None,
+                  all_ids=False, timestamp=False):
+    if all_ids:
+        # Get all backup configs
+        backups = fetch_backup_list(data)
+        for backup in backups:
+            create_backup_export(data, backup["Backup"]["ID"], output, path, timestamp)
+    else:
+        create_backup_export(data, backup_id, output, path, timestamp)
 
 # Export backup configuration to either YAML or JSON
-def create_backup_export(data, backup, output=None, path=None, timestamp=False):
-    # Strip Progress
-    backup.pop("Progress", None)
-
-    # Fetch server version
-    systeminfo = fetch_resource_list(data, "systeminfo")
-
-    if systeminfo.get("ServerVersion", None) is None:
-        common.log_output("Error exporting backup", True)
+def create_backup_export(data, backup_id, output=None, path=None, timestamp=False):
+    baseurl = common.create_baseurl(data, "/api/v1/backup/" + str(backup_id)
+                                    + "/export?export-passwords=true")
+    common.log_output("Fetching backup data from API...", False)
+    cookies = common.create_cookies(data)
+    headers = common.create_headers(data)
+    verify = data.get("server", {}).get("verify", True)
+    r = requests.get(baseurl, headers=headers, cookies=cookies, verify=verify)
+    common.check_response(data, r.status_code)
+    if r.status_code == 404:
+        common.log_output("Backup not found", True, r.status_code)
+        sys.exit(2)
+    elif r.status_code != 200:
+        common.log_output("Error connecting", True, r.status_code)
         sys.exit(2)
 
-    backup["CreatedByVersion"] = systeminfo["ServerVersion"]
-    create_resource_export(data, backup, backup['Backup']['Name'], output, path, timestamp)
+    backup = r.json()
+    name = backup['Backup']['Name']
 
-
-# Export resource configuration to either YAML or JSON
-def create_resource_export(data, resource, name="resource", output=None,
-                            path=None, timestamp=False):
     # YAML or JSON?
-    if output in ["JSON", "json"]:
-        filetype = ".json"
-    else:
+    if output in ["YAML", "yaml"]:
         filetype = ".yml"
+    else:
+        filetype = ".json"
 
     # Decide on where to output file
     if timestamp:
@@ -1297,9 +1285,9 @@ def create_resource_export(data, resource, name="resource", output=None,
             return
     with open(path, 'w') as file:
         if filetype == ".json":
-            file.write(json.dumps(resource, indent=4, default=str))
+            file.write(json.dumps(backup, indent=4, default=str))
         else:
-            file.write(yaml.dump(resource, default_flow_style=False))
+            file.write(yaml.dump(backup, default_flow_style=False))
     common.log_output("Created " + path, True, 200)
 
 

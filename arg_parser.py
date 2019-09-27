@@ -119,11 +119,8 @@ delete_parser.add_argument('--recreate',
 # edit_parser.add_argument('id', type=int, help=message)
 
 # Subparser for the Export method
-message = "export a resource from the server to YAMl or JSON format"
+message = "export a backup from the server to YAMl or JSON format"
 export_parser = subparsers.add_parser('export', help=message)
-choices = ["backup", "serversettings"]
-message = "the type of resource"
-export_parser.add_argument('type', choices=choices, help=message)
 message = "the ID of the resource to export"
 export_parser.add_argument('id', action='store', nargs='?', type=int, help=message)
 message = "export all backups"
@@ -136,7 +133,7 @@ choices = [
     "yaml",
     "json"
 ]
-message = "output YAML or JSON, defaults to YAML"
+message = "output YAML or JSON, defaults to JSON"
 export_parser.add_argument('--output', help=message,
                            choices=choices, metavar='')
 message = "Path to output the file at"
