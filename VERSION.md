@@ -1,5 +1,9 @@
 # Duplicati client
-Version 0.4.24 beta
+Version 0.4.25 beta
+
+## 0.4.25 beta (c2dd672)
+
+Added an option to backup export command to avoid exporting passwords"
 
 ## 0.4.24 beta (ee8721f)
 
