@@ -1,8 +1,6 @@
 # Duplicati Client
 The Duplicati Client connects to Duplicati servers remotely or locally and helps manage them easily through the command-line.
 
-A client daemon mode will be available eventually, allowing to periodically pull instructions from a central management server.
-
 # Table of contents
 
 <!--ts-->
