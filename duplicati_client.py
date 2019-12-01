@@ -201,10 +201,12 @@ def main(**args):
         resource_id = args.get("id", None)
         output_type = args.get("output", None)
         path = args.get("output_path", None)
+        export_passwords = args.get("no_passwords", True)
         all_ids = args.get("all", False)
         timestamp = args.get("timestamp", False)
-        export_backup(data, resource_id, output_type,
-                        path, all_ids, timestamp)
+        print(export_passwords)
+        export_backup(data, resource_id, output_type, path,
+                      export_passwords, all_ids, timestamp)
 
 
 # Function for display a list of resources
@@ -1223,20 +1225,21 @@ def import_backup(data, import_file, backup_id=None, import_meta=None):
 
 
 # Export backup wrapper function
-def export_backup(data, backup_id, output=None, path=None,
+def export_backup(data, backup_id, output=None, path=None, export_passwords=True,
                   all_ids=False, timestamp=False):
     if all_ids:
         # Get all backup configs
         backups = fetch_backup_list(data)
         for backup in backups:
-            create_backup_export(data, backup["Backup"]["ID"], output, path, timestamp)
+            create_backup_export(data, backup["Backup"]["ID"], output,
+                                 path, export_passwords, timestamp)
     else:
-        create_backup_export(data, backup_id, output, path, timestamp)
+        create_backup_export(data, backup_id, output, path, export_passwords, timestamp)
 
 # Export backup configuration to either YAML or JSON
-def create_backup_export(data, backup_id, output=None, path=None, timestamp=False):
+def create_backup_export(data, backup_id, output, path, export_passwords, timestamp):
     baseurl = common.create_baseurl(data, "/api/v1/backup/" + str(backup_id)
-                                    + "/export?export-passwords=true")
+                                    + "/export?export-passwords=" + str(export_passwords).lower())
     common.log_output("Fetching backup data from API...", False)
     cookies = common.create_cookies(data)
     headers = common.create_headers(data)

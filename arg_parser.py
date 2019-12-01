@@ -136,8 +136,11 @@ choices = [
 message = "output YAML or JSON, defaults to JSON"
 export_parser.add_argument('--output', help=message,
                            choices=choices, metavar='')
-message = "Path to output the file at"
+message = "path to output the file at"
 export_parser.add_argument('--output-path', metavar='', help=message)
+message = "avoid having passwords in the exported config"
+export_parser.add_argument('--no-passwords', action='store_false', help=message)
+
 
 # Subparser for the Repair method
 message = "repair a database"
