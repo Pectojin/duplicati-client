@@ -1,5 +1,11 @@
 # Duplicati client
-Version 0.4.25 beta
+Version 0.5.2 beta
+
+## 0.5.2 beta (f994f2e)
+
+Added support for UTF-8 characters in files, such as importing backups with Japanese characters in the name
+
+Dropped support for Python 2, as it's no longer supported upstream
 
 ## 0.4.25 beta (c2dd672)
 
