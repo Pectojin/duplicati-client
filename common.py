@@ -2,8 +2,10 @@
 import auth
 import config
 import datetime
+import io
 import sys
 import os.path
+import urllib
 import yaml
 import compatibility
 
@@ -40,8 +42,8 @@ def write_config(data):
         message = "Created directory \"" + directory + "\""
         log_output(message, True)
         os.makedirs(directory)
-    with open(config.CONFIG_FILE, 'w') as file:
-        file.write(yaml.dump(data, default_flow_style=False))
+    with io.open(config.CONFIG_FILE, 'w', encoding="UTF-8") as file:
+        file.write(yaml.safe_dump(data, default_flow_style=False, allow_unicode=True))
 
 
 # Common function for getting parameters from file
@@ -56,7 +58,7 @@ def load_parameters(data, args):
         return args
 
     # Load the parameters from the file
-    with open(file, 'r') as file_handle:
+    with io.open(file, 'r', encoding="UTF-8") as file_handle:
         try:
             parameters_file = yaml.safe_load(file_handle)
             parameters = len(parameters_file)
@@ -139,7 +141,7 @@ def create_baseurl(data, additional_path="", append_token=False):
     baseurl = protocol + "://" + url + ":" + port + additional_path
     if append_token is True:
         baseurl += "?x-xsrf-token="
-        baseurl += compatibility.quote(data.get("token", ''))
+        baseurl += urllib.parse.quote_plus(data.get("token", ''))
 
     return baseurl
 

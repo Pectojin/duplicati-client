@@ -9,6 +9,7 @@ import json
 import random
 import re
 import sys
+import urllib
 
 from os.path import expanduser
 from requests_wrapper import requests_wrapper as requests
@@ -107,7 +108,7 @@ def login(data, input_url=None, password=None, verify=True,
 
     if r.status_code == 200 and not login_redirect:
         common.log_output("OK", False, r.status_code)
-        token = compatibility.unquote(r.cookies["xsrf-token"])
+        token = urllib.parse.unquote(r.cookies["xsrf-token"])
     elif r.status_code == 200 and login_redirect:
         password = prompt_password(password, interactive)
 
@@ -123,8 +124,8 @@ def login(data, input_url=None, password=None, verify=True,
             sys.exit(2)
 
         salt = r.json()["Salt"]
-        data["nonce"] = compatibility.unquote(r.json()["Nonce"])
-        token = compatibility.unquote(r.cookies["xsrf-token"])
+        data["nonce"] = urllib.parse.unquote(r.json()["Nonce"])
+        token = urllib.parse.unquote(r.cookies["xsrf-token"])
         common.log_output("Hashing password...", False)
         salt_password = password.encode() + base64.b64decode(salt)
         saltedpwd = hashlib.sha256(salt_password).digest()
@@ -144,7 +145,7 @@ def login(data, input_url=None, password=None, verify=True,
         common.check_response(data, r.status_code)
         if r.status_code == 200:
             common.log_output("Connected", False, r.status_code)
-            data["session-auth"] = compatibility.unquote(
+            data["session-auth"] = urllib.parse.unquote(
                                         r.cookies["session-auth"])
         else:
             message = "Error authenticating against the server"

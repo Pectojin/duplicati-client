@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import arg_parser as ArgumentParser
 import config
+import io
 import json
 import os.path
 import sys
@@ -226,8 +227,7 @@ def list_resources(data, resource):
         common.log_output("No items found", True)
         sys.exit(2)
 
-    # Must use safe_dump for python 2 compatibility
-    message = yaml.safe_dump(resource_list, default_flow_style=False)
+    message = yaml.safe_dump(resource_list, default_flow_style=False, allow_unicode=True)
     common.log_output(message, True, 200)
 
 
@@ -392,7 +392,7 @@ def get_resources(data, resource_type, resource_ids):
     elif resource_type == "notification":
         result = fetch_notifications(data, resource_ids, "get")
 
-    message = yaml.safe_dump(result, default_flow_style=False)
+    message = yaml.safe_dump(result, default_flow_style=False, allow_unicode=True)
     common.log_output(message, True, 200)
 
 
@@ -403,8 +403,7 @@ def describe_resources(data, resource_type, resource_ids):
     elif resource_type == "notification":
         result = fetch_notifications(data, resource_ids, "describe")
 
-    # Must use safe_dump for python 2 compatibility
-    message = yaml.safe_dump(result, default_flow_style=False)
+    message = yaml.safe_dump(result, default_flow_style=False, allow_unicode=True)
     common.log_output(message, True, 200)
 
 
@@ -720,7 +719,7 @@ def get_backup_logs(data, backup_id, log_type, page_size=5, show_all=False):
             int(log.get("Timestamp", 0))
         ).strftime("%I:%M:%S %p %d/%m/%Y")
         logs.append(log)
-    message = yaml.safe_dump(logs, default_flow_style=False)
+    message = yaml.safe_dump(logs, default_flow_style=False, allow_unicode=True)
     common.log_output(message, True)
 
 
@@ -754,7 +753,7 @@ def get_live_logs(data, level, page_size=5, first_id=0):
         common.log_output("No log entries found", True)
         return
 
-    message = yaml.safe_dump(logs, default_flow_style=False)
+    message = yaml.safe_dump(logs, default_flow_style=False, allow_unicode=True)
     common.log_output(message, True)
 
 
@@ -803,7 +802,7 @@ def get_stored_logs(data, page_size=5, show_all=False):
         common.log_output("No log entries found", True)
         return
 
-    message = yaml.safe_dump(logs, default_flow_style=False)
+    message = yaml.safe_dump(logs, default_flow_style=False, allow_unicode=True)
     common.log_output(message, True)
 
 
@@ -1094,7 +1093,7 @@ def load_config(data, overwrite=False):
         common.log_output("Creating config file", True)
         common.write_config(data)
     # Load the configuration from the config file
-    with open(config.CONFIG_FILE, 'r') as file:
+    with io.open(config.CONFIG_FILE, 'r', encoding="UTF-8") as file:
         try:
             data = yaml.safe_load(file)
             common.validate_config(data)
@@ -1132,7 +1131,7 @@ def display_parameters(data):
     file = data.get("parameters_file", None)
     if file is None:
         return
-    with open(file, 'r') as file_handle:
+    with io.open(file, 'r', encoding="UTF-8") as file_handle:
         try:
             parameters_file = yaml.safe_load(file_handle)
             output = yaml.dump(parameters_file, default_flow_style=False)
@@ -1158,7 +1157,7 @@ def import_backup(data, import_file, backup_id=None, import_meta=None):
         return
 
     # Load the import file
-    with open(import_file, 'r') as file_handle:
+    with io.open(import_file, 'r', encoding="UTF-8") as file_handle:
         extension = splitext(import_file)[1]
         if extension.lower() in ['.yml', '.yaml']:
             try:
@@ -1286,7 +1285,7 @@ def create_backup_export(data, backup_id, output, path, export_passwords, timest
         agree = input('File already exists, overwrite? [Y/n]:')
         if agree not in ["Y", "y", "yes", "YES", ""]:
             return
-    with open(path, 'w') as file:
+    with io.open(path, 'w', encoding="UTF-8") as file:
         if filetype == ".json":
             file.write(json.dumps(backup, indent=4, default=str))
         else:

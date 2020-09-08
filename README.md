@@ -43,7 +43,7 @@ Currently the script relies on multiple external libraries:
 Clone the repo
 
     git clone https://github.com/pectojin/duplicati-client
-The client runs in either Python 3 or Python 2 but requires the above dependencies
+The client runs on Python 3 and requires the above dependencies
 
     pip3 install -r requirements.txt
 For convenience you can symlink the client
