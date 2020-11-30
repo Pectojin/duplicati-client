@@ -253,3 +253,14 @@ params_parser.add_argument('param-file', nargs='?', help=message)
 message = "disable the parameters file"
 params_parser.add_argument('--disable', help=message, action='store_true')
 params_parser.add_argument('--show', help=message, action='store_true')
+
+# Subparser for pause
+message = "pause Duplicati server"
+pause_parser = subparsers.add_parser('pause', help=message)
+message = "duration before resume (e.g. 5m, 1h or empty for unlimited)"
+pause_parser.add_argument('--duration', default="", help=message)
+
+# Subparser for resume
+message = "resume paused Duplicati server"
+resume_parser = subparsers.add_parser('resume', help=message)
+
