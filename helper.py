@@ -27,7 +27,7 @@ def format_time(time_string, precise=False):
         return datetime_object.strftime("%I:%M:%S %p %d/%m/%Y")
 
     # Now for comparison
-    now = datetime.datetime.now()
+    now = datetime.datetime.now().replace(tzinfo=tz.tzutc())
 
     # Get the delta
     if datetime_object > now:
