@@ -245,6 +245,12 @@ verbose_parser = subparsers.add_parser('verbose', help=message)
 choices = ["enable", "disable"]
 verbose_parser.add_argument('mode', nargs='?', choices=choices)
 
+# Subparser for toggling precise time mode
+message = "change between short and precise time format"
+precise_parser = subparsers.add_parser('precise', help=message)
+choices = ["enable", "disable"]
+precise_parser.add_argument('mode', nargs='?', choices=choices)
+
 # Subparser for setting a parameter file
 message = "import parameters from a YAML file"
 params_parser = subparsers.add_parser('params', help=message)

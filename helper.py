@@ -7,7 +7,8 @@ from dateutil import tz
 
 
 # Helper function for formatting timestamps for humans
-def format_time(time_string, precise=False):
+def format_time(data, time_string):
+    precise = data.get("precise", False)
     # Ensure it's a string
     time_string = str(time_string)
 

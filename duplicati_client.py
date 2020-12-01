@@ -40,6 +40,7 @@ def main(**args):
         'token': None,
         'token_expires': None,
         'verbose': False,
+        'precise': False,
         'authorization': ''
     }
 
@@ -66,6 +67,11 @@ def main(**args):
     if method == "verbose":
         mode = args.get("mode", None)
         data = toggle_verbose(data, mode)
+
+    # Toggle precise time
+    if method == "precise":
+        mode = args.get("mode", None)
+        data = toggle_precise(data, mode)
 
     # Write verbosity setting to config variable
     config.VERBOSE = data.get("verbose", False)
@@ -230,7 +236,7 @@ def list_resources(data, resource):
     else:
         resource_list = fetch_resource_list(data, resource)
 
-    resource_list = list_filter(resource_list, resource)
+    resource_list = list_filter(data, resource_list, resource)
 
     if len(resource_list) == 0:
         common.log_output("No items found", True)
@@ -315,7 +321,7 @@ def fetch_resource_list(data, resource):
 
 
 # Filter logic for the list function to facilitate readable output
-def list_filter(json_input, resource):
+def list_filter(data, json_input, resource):
     resource_list = []
     if resource == "backups":
         for key in json_input:
@@ -334,11 +340,11 @@ def list_filter(json_input, resource):
                 backup[backup_name]["Source size"] = size
 
             if schedule is not None:
-                next_run = helper.format_time(schedule.get("Time", ""))
+                next_run = helper.format_time(data, schedule.get("Time", ""))
                 if next_run is not None:
                     backup[backup_name]["Next run"] = next_run
 
-                last_run = helper.format_time(schedule.get("LastRun", ""))
+                last_run = helper.format_time(data, schedule.get("LastRun", ""))
                 if last_run is not None:
                     backup[backup_name]["Last run"] = last_run
 
@@ -358,7 +364,7 @@ def list_filter(json_input, resource):
                     "Notification ID": val.get("ID", ""),
                 }
             }
-            timestamp = helper.format_time(val.get("Timestamp", ""))
+            timestamp = helper.format_time(data, val.get("Timestamp", ""))
             if timestamp is not None:
                 notification["Timestamp"] = timestamp
 
@@ -448,7 +454,7 @@ def fetch_notifications(data, notification_ids, method):
 
 
 # Filter logic for the notification get command
-def notification_filter(json_input):
+def notification_filter(data, json_input):
     notification_list = []
     for key in json_input:
         title = key.get("Title", "Notification")
@@ -460,7 +466,7 @@ def notification_filter(json_input):
                 "Type": key.get("Type", ""),
             }
         }
-        timestamp = helper.format_time(key.get("Timestamp", ""))
+        timestamp = helper.format_time(data, key.get("Timestamp", ""))
         if timestamp is not None:
             notification[title]["Timestamp"] = timestamp
 
@@ -503,7 +509,7 @@ def fetch_backups(data, backup_ids, method):
 
     # Only get uses a filter
     if method == "get":
-        backup_list = backup_filter(backup_list)
+        backup_list = backup_filter(data, backup_list)
 
     return backup_list
 
@@ -546,7 +552,7 @@ def fetch_progress_state(data):
 
 
 # Filter logic for the fetch backup/backups methods
-def backup_filter(json_input):
+def backup_filter(data, json_input):
     backup_list = []
     for key in json_input:
         backup = key.pop("Backup", {})
@@ -561,9 +567,9 @@ def backup_filter(json_input):
             "Duration":
             helper.format_duration(metadata.get("LastBackupDuration", "0")),
             "Started":
-            helper.format_time(metadata.get("LastBackupStarted", "0")),
+            helper.format_time(data, metadata.get("LastBackupStarted", "0")),
             "Stopped":
-            helper.format_time(metadata.get("LastBackupFinished", "0")),
+            helper.format_time(data, metadata.get("LastBackupFinished", "0")),
         }
         backup["Size"] = {
             "Local": metadata.get("SourceSizeString", ""),
@@ -572,10 +578,10 @@ def backup_filter(json_input):
 
         schedule = key.get("Schedule", None)
         if schedule is not None:
-            next_run = helper.format_time(schedule.pop("Time", ""))
+            next_run = helper.format_time(data, schedule.pop("Time", ""))
             if next_run is not None:
                 schedule["Next run"] = next_run
-            last_run = helper.format_time(schedule.pop("LastRun", ""))
+            last_run = helper.format_time(data, schedule.pop("LastRun", ""))
             if last_run is not None:
                 schedule["Last run"] = last_run
             schedule.pop("AllowedDays", None)
@@ -685,7 +691,7 @@ def get_logs(data, log_type, backup_id, remote=False,
 
         # Follow the function or just run it once
         if follow:
-            follow_function(function, 10)
+            follow_function(data, function, 10)
         else:
             function()
 
@@ -769,7 +775,7 @@ def get_live_logs(data, level, page_size=5, first_id=0):
     result = r.json()[-page_size:]
     logs = []
     for log in result:
-        log["When"] = helper.format_time(log.get("When", ""), True)
+        log["When"] = helper.format_time(data, log.get("When", ""))
         logs.append(log)
 
     if len(logs) == 0:
@@ -830,12 +836,12 @@ def get_stored_logs(data, page_size=5, show_all=False):
 
 
 # Repeatedly call other functions until interrupted
-def follow_function(function, interval=5):
+def follow_function(data, function, interval=5):
     try:
         while True:
             compatibility.clear_prompt()
             function()
-            timestamp = helper.format_time(datetime.datetime.now(), True)
+            timestamp = helper.format_time(data, datetime.datetime.now())
             common.log_output(timestamp, True)
             common.log_output("Press control+C to quit", True)
             time.sleep(interval)
@@ -1071,6 +1077,22 @@ def toggle_verbose(data, mode=None):
     return data
 
 
+# Toggle precise time
+def toggle_precise(data, mode=None):
+    if mode == "enable":
+        data["precise"] = True
+    elif mode == "disable":
+        data["precise"] = False
+    else:
+        data["precise"] = not data.get("precise", False)
+
+    common.write_config(data)
+    precise = data.get("precise", True)
+    message = "precise mode: " + str(precise)
+    common.log_output(message, True)
+    return data
+
+
 # Print the status to stdout
 def display_status(data):
     message = "Server       : " + common.create_baseurl(data)
@@ -1107,11 +1129,11 @@ def display_status(data):
 
     if data.get("last_login", None) is not None:
         last_login = data.get("last_login", "")
-        message = "Logged in    : " + helper.format_time(last_login)
+        message = "Logged in    : " + helper.format_time(data, last_login)
         common.log_output(message, True)
 
     if token_expires is not None:
-        message = "Expiration   : " + helper.format_time(token_expires)
+        message = "Expiration   : " + helper.format_time(data, token_expires)
         common.log_output(message, True)
 
 

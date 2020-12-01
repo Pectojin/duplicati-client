@@ -74,6 +74,9 @@ def load_parameters(data, args):
             if parameters_file.get("verbose", None) is not None:
                 data["verbose"] = parameters_file.get("verbose")
 
+            if parameters_file.get("precise", None) is not None:
+                data["precise"] = parameters_file.get("precise")
+
             # Update parameters_file variable in config file
             data["parameters_file"] = file
             write_config(data)
