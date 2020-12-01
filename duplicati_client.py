@@ -508,6 +508,20 @@ def fetch_backups(data, backup_ids, method):
     return backup_list
 
 
+def fetch_server_state(data):
+    baseurl = common.create_baseurl(data, "/api/v1/serverstate")
+    cookies = common.create_cookies(data)
+    headers = common.create_headers(data)
+    verify = data.get("server", {}).get("verify", True)
+    r = requests.get(baseurl, headers=headers, cookies=cookies, verify=verify)
+    if r.status_code != 200:
+        server_state = {}
+    else:
+        server_state = r.json()
+
+    return server_state
+
+
 # Fetch backup progress state
 def fetch_progress_state(data):
     baseurl = common.create_baseurl(data, "/api/v1/progressstate")
@@ -1060,6 +1074,10 @@ def toggle_verbose(data, mode=None):
 # Print the status to stdout
 def display_status(data):
     message = "Server       : " + common.create_baseurl(data)
+    common.log_output(message, True)
+
+    server_state = fetch_server_state(data)
+    message = "Server state : " + server_state.get("ProgramState")
     common.log_output(message, True)
 
     server_activity, backup_id = fetch_progress_state(data)
