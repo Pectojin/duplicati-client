@@ -1077,8 +1077,10 @@ def display_status(data):
     common.log_output(message, True)
 
     server_state = fetch_server_state(data)
-    message = "Server state : " + server_state.get("ProgramState")
-    common.log_output(message, True)
+    program_state = server_state.get("ProgramState", None)
+    if program_state is not None:
+        message = "Server state : " + program_state
+        common.log_output(message, True)
 
     server_activity, backup_id = fetch_progress_state(data)
     message = "Server status: "
