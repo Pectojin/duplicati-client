@@ -1116,7 +1116,7 @@ def display_status(data):
 # Pause
 def pause(data, duration):
     url = "/api/v1/serverstate/pause?duration=" + duration
-    fail_message = "Failed to pauase server"
+    fail_message = "Failed to pause server"
     success_message = "Server paused"
     call_backup_subcommand(data, url, fail_message, success_message)
 
