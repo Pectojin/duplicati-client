@@ -210,6 +210,15 @@ def main(**args):
                       export_passwords, all_ids, timestamp)
 
 
+    # Pause
+    if method == "pause":
+        time = args.get("duration", "xxx")
+        pause(data, time)
+    
+    # Resume
+    if method == "resume":
+        resume(data)
+
 # Function for display a list of resources
 def list_resources(data, resource):
     common.verify_token(data)
@@ -1085,6 +1094,20 @@ def display_status(data):
         message = "Expiration   : " + helper.format_time(token_expires)
         common.log_output(message, True)
 
+
+# Pause
+def pause(data, duration):
+    url = "/api/v1/serverstate/pause?duration=" + duration
+    fail_message = "Failed to pauase server"
+    success_message = "Server paused"
+    call_backup_subcommand(data, url, fail_message, success_message)
+
+# Resume
+def resume(data):
+    url = "/api/v1/serverstate/resume"
+    fail_message = "Failed to resume server"
+    success_message = "Resume server"
+    call_backup_subcommand(data, url, fail_message, success_message)    
 
 # Load the configration from disk
 def load_config(data, overwrite=False):

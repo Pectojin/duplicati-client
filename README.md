@@ -103,6 +103,8 @@ Logout when you're done
     config    prints the config to stdout
     verbose   Change between normal and verbose mode
     params    import parameters from a YAML file
+    pause     pause Duplicati server
+    resume    resume paused Duplicati server
 
 Some of the commands are placeholders until I get them implemented.
 
