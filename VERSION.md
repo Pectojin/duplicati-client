@@ -1,5 +1,17 @@
 # Duplicati client
-Version 0.5.2 beta
+Version 0.5.7 beta
+
+## 0.5.7 beta (5dbd54f)
+
+Added support for pause and resume commands, thanks @irgendwienet
+
+Added server pause/running indicator on the status command
+
+Added precise command for toggling between short and precise timestamps
+
+Fixed an empty edge case on the status command output
+
+Fixed a display issue with time offset on short version of printed timestamps
 
 ## 0.5.2 beta (f994f2e)
 
