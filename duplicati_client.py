@@ -317,6 +317,7 @@ def fetch_resource_list(data, resource):
         common.log_output("Error connecting", True, r.status_code)
         sys.exit(2)
     else:
+        r.encoding='utf-8-sig'
         return r.json()
 
 
@@ -439,6 +440,7 @@ def fetch_notifications(data, notification_ids, method):
         message = "Error getting notifications " + id_list
         common.log_output(message, True, r.status_code)
     else:
+        r.encoding='utf-8-sig'        
         data = r.json()
 
     for notification in data:
@@ -496,6 +498,7 @@ def fetch_backups(data, backup_ids, method):
             message = "Error getting backup " + str(backup_id)
             common.log_output(message, True, r.status_code)
             continue
+        r.encoding='utf-8-sig'            
         backup = r.json()["data"]
 
         item_id = backup.get("Backup", {}).get("ID", 0)
@@ -523,6 +526,7 @@ def fetch_server_state(data):
     if r.status_code != 200:
         server_state = {}
     else:
+        r.encoding='utf-8-sig'        
         server_state = r.json()
 
     return server_state
@@ -540,6 +544,7 @@ def fetch_progress_state(data):
         active_id = -1
         progress_state = {}
     else:
+        r.encoding='utf-8-sig'        
         progress_state = r.json()
         active_id = progress_state.get("BackupID", -1)
 
@@ -717,6 +722,7 @@ def get_backup_logs(data, backup_id, log_type, page_size=5, show_all=False):
         common.log_output("Error getting log", True, r.status_code)
         return
 
+    r.encoding='utf-8-sig'
     result = r.json()[-page_size:]
     logs = []
     for log in result:
@@ -772,6 +778,7 @@ def get_live_logs(data, level, page_size=5, first_id=0):
         common.log_output("Error getting log", True, r.status_code)
         return
 
+    r.encoding='utf-8-sig'
     result = r.json()[-page_size:]
     logs = []
     for log in result:
@@ -806,6 +813,7 @@ def get_stored_logs(data, page_size=5, show_all=False):
         common.log_output("Error getting log", True, r.status_code)
         return
 
+    r.encoding='utf-8-sig'
     result = r.json()[-page_size:]
     logs = []
     for log in result:
@@ -1317,6 +1325,7 @@ def create_backup_export(data, backup_id, output, path, export_passwords, timest
         common.log_output("Error connecting", True, r.status_code)
         sys.exit(2)
 
+    r.encoding='utf-8-sig'    
     backup = r.json()
     name = backup['Backup']['Name']
 
