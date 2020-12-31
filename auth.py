@@ -123,6 +123,7 @@ def login(data, input_url=None, password=None, verify=True,
                               r.status_code)
             sys.exit(2)
 
+        r.encoding='utf-8-sig'          
         salt = r.json()["Salt"]
         data["nonce"] = urllib.parse.unquote(r.json()["Nonce"])
         token = urllib.parse.unquote(r.cookies["xsrf-token"])
