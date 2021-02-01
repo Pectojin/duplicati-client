@@ -39,6 +39,7 @@ class requests_wrapper():
                              verify=verify,
                              timeout=timeout_seconds
                             )
+            r.encoding='utf-8-sig'
             return r
         except requests.exceptions.SSLError:
             dummy = Dummy()
@@ -76,6 +77,7 @@ class requests_wrapper():
                                 verify=verify,
                                 timeout=timeout_seconds
                                 )
+            r.encoding='utf-8-sig'
             return r
         except requests.exceptions.SSLError:
             dummy = Dummy()
@@ -113,6 +115,7 @@ class requests_wrapper():
                               verify=verify,
                               timeout=timeout_seconds
                              )
+            r.encoding='utf-8-sig'
             return r
         except requests.exceptions.SSLError:
             dummy = Dummy()
@@ -150,6 +153,7 @@ class requests_wrapper():
                              verify=verify,
                              timeout=timeout_seconds
                             )
+            r.encoding='utf-8-sig'
             return r
         except requests.exceptions.SSLError:
             dummy = Dummy()
@@ -187,6 +191,7 @@ class requests_wrapper():
                                verify=verify,
                                timeout=timeout_seconds
                               )
+            r.encoding='utf-8-sig'
             return r
         except requests.exceptions.SSLError:
             dummy = Dummy()
