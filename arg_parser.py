@@ -158,7 +158,7 @@ message = "path to output the file at"
 export_parser.add_argument('--output-path', metavar='', help=message)
 message = "avoid having passwords in the exported config"
 export_parser.add_argument('--no-passwords', action='store_false', help=message)
-message = "confirm deletion non-interactively"
+message = "confirm replacement non-interactively"
 export_parser.add_argument('--confirm',
                            action='store_true', help=message)
 
