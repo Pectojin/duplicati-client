@@ -62,7 +62,7 @@ message = "output YAML or JSON, defaults to YAML"
 describe_parser.add_argument('--output', help=message,
                            choices=choices, metavar='', type=str.lower)
 
-# Subparser for the set method
+# Subparser for the Set method
 message = "set values on resources"
 set_parser = subparsers.add_parser('set', help=message)
 message = "control password protection of the server"
@@ -75,7 +75,6 @@ message = "provide a password inline instead of interactively"
 set_pwd_parser.add_argument('--password', metavar='', help=message)
 message = "noninteractive mode for use in scripts"
 set_pwd_parser.add_argument('--script', action='store_false', help=message)
-
 
 # Subparser for the Run method
 message = "run a backup job"
@@ -159,6 +158,9 @@ message = "path to output the file at"
 export_parser.add_argument('--output-path', metavar='', help=message)
 message = "avoid having passwords in the exported config"
 export_parser.add_argument('--no-passwords', action='store_false', help=message)
+message = "confirm deletion non-interactively"
+export_parser.add_argument('--confirm',
+                           action='store_true', help=message)
 
 
 # Subparser for the Repair method

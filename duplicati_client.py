@@ -55,14 +55,14 @@ def main(**args):
     # Set parameters file
     if method == "params":
         data = set_parameters_file(data, args, param_file)
-        return
 
     # Load parameters file
     args = common.load_parameters(data, args)
 
     # Show parameters
-    if method == "params" and (args.get("show", False) or param_file is None):
-        display_parameters(data)
+    if method == "params":
+        if args.get("show", False) or param_file is None:
+            display_parameters(data)
         return
 
     # Toggle verbosity
@@ -99,7 +99,7 @@ def main(**args):
         certfile = args.get("certfile", None)
         insecure = args.get("insecure", False)
         verify = auth.determine_ssl_validation(data, certfile, insecure)
-        interactive = args.get("script", True)
+        interactive = args.get("script", False)
         data = auth.login(data, url, password, verify, interactive,
                           basic_user, basic_pass)
         return
@@ -138,7 +138,7 @@ def main(**args):
         if resource == "password":
             password = args.get("password", None)
             disable_login = args.get("disable", False)
-            interactive = args.get("script", True)
+            interactive = args.get("script", False)
             auth.set_password(data, password, disable_login, interactive)
         return
 
@@ -239,8 +239,9 @@ def main(**args):
         all_ids = args.get("all", False)
         timestamp = args.get("timestamp", False)
         print(export_passwords)
+        confirm = args.get("confirm", False)
         export_backup(data, resource_id, output_type, path,
-                      export_passwords, all_ids, timestamp)
+                      export_passwords, all_ids, timestamp, confirm)
         return
 
     # Pause
@@ -1313,19 +1314,19 @@ def import_backup(data, import_file, backup_id=None, import_meta=None):
 
 
 # Export backup wrapper function
-def export_backup(data, backup_id, output=None, path=None, export_passwords=True,
-                  all_ids=False, timestamp=False):
+def export_backup(data, backup_id, output, path, export_passwords,
+                  all_ids, timestamp, confirm):
     if all_ids:
         # Get all backup configs
         backups = fetch_backup_list(data)
         for backup in backups:
             create_backup_export(data, backup["Backup"]["ID"], output,
-                                 path, export_passwords, timestamp)
+                                 path, export_passwords, timestamp, confirm)
     else:
-        create_backup_export(data, backup_id, output, path, export_passwords, timestamp)
+        create_backup_export(data, backup_id, output, path, export_passwords, timestamp, confirm)
 
 # Export backup configuration to either YAML or JSON
-def create_backup_export(data, backup_id, output, path, export_passwords, timestamp):
+def create_backup_export(data, backup_id, output, path, export_passwords, timestamp, confirm):
     baseurl = common.create_baseurl(data, "/api/v1/backup/" + str(backup_id)
                                     + "/export?export-passwords=" + str(export_passwords).lower())
     common.log_output("Fetching backup data from API...", False)
@@ -1370,7 +1371,7 @@ def create_backup_export(data, backup_id, output, path, export_passwords, timest
         common.log_output(message, True)
         os.makedirs(directory)
     # Check if output file exists
-    if os.path.isfile(path) is True:
+    if confirm and (os.path.isfile(path) is True):
         agree = input('File already exists, overwrite? [Y/n]:')
         if agree.lower() not in ["y", "yes"]:
             return
