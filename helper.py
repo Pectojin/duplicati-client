@@ -1,6 +1,8 @@
 # Module for small helper functions that are mostly generic
 import common
 import datetime
+import json
+import yaml
 
 from dateutil import parser as dateparser
 from dateutil import tz
@@ -85,3 +87,12 @@ def format_bytes(number_of_bytes):
     number_of_bytes = round(number_of_bytes, precision)
 
     return str(number_of_bytes) + ' ' + unit
+
+
+# output to console in definite type: YAML or JSON (default: YAML)
+def output_dump(data, output):
+    if output is not None and output.lower() == "json":
+        message = json.dumps(data, indent=4, default=str)
+    else:
+        message = yaml.safe_dump(data, default_flow_style=False, allow_unicode=True)
+    common.log_output(message, True, 200)

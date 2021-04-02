@@ -18,16 +18,30 @@ choices = [
     "systeminfo"
 ]
 message = "the type of resource"
-list_parser.add_argument('type', choices=choices, help=message)
+list_parser.add_argument('type', choices=choices, help=message, type=str.lower)
+choices = [
+    "yaml",
+    "json"
+]
+message = "output YAML or JSON, defaults to YAML"
+list_parser.add_argument('--output', help=message,
+                           choices=choices, metavar='', type=str.lower)
 
 # Subparser for the Get method
 message = "display breif information on one or many resources"
 get_parser = subparsers.add_parser('get', help=message)
 message = "the type of resource"
 choices = ["backup", "notification"]
-get_parser.add_argument('type', choices=choices, help=message)
+get_parser.add_argument('type', choices=choices, help=message, type=str.lower)
 message = "one or more ID's to look up"
 get_parser.add_argument('id', nargs='+', type=int, help=message)
+choices = [
+    "yaml",
+    "json"
+]
+message = "output YAML or JSON, defaults to YAML"
+get_parser.add_argument('--output', help=message,
+                           choices=choices, metavar='', type=str.lower)
 
 # Subparser for the Describe method
 message = "display detailed information on a specific resource"
@@ -37,9 +51,16 @@ choices = [
     "backup",
     "notification"
 ]
-describe_parser.add_argument('type', choices=choices, help=message)
+describe_parser.add_argument('type', choices=choices, help=message, type=str.lower)
 message = "the ID of the resource to look up"
 describe_parser.add_argument('id', nargs='+', type=int, help=message)
+choices = [
+    "yaml",
+    "json"
+]
+message = "output YAML or JSON, defaults to YAML"
+describe_parser.add_argument('--output', help=message,
+                           choices=choices, metavar='', type=str.lower)
 
 # Subparser for the set method
 message = "set values on resources"
@@ -72,7 +93,7 @@ abort_parser.add_argument('id', type=int, help=message)
 message = "create a resource on the server from a YAMl or JSON file"
 create_parser = subparsers.add_parser('create', help=message)
 message = "the type of resource"
-create_parser.add_argument('type', choices=["backup"], help=message)
+create_parser.add_argument('type', choices=["backup"], help=message, type=str.lower)
 message = "file containing a job configuration in YAML or JSON format"
 create_parser.add_argument('import-file', nargs='?', help=message)
 message = "import the metadata when creating a backup"
@@ -83,7 +104,7 @@ create_parser.add_argument('--import-metadata', help=message,
 message = "update a resource on the server from a YAMl or JSON file"
 update_parser = subparsers.add_parser('update', help=message)
 message = "the type of resource"
-update_parser.add_argument('type', choices=["backup"], help=message)
+update_parser.add_argument('type', choices=["backup"], help=message, type=str.lower)
 message = "the ID of the resource to update"
 update_parser.add_argument('id', help=message)
 message = "file containing a job configuration in YAML or JSON format"
@@ -97,7 +118,7 @@ message = "delete a resource on the server"
 delete_parser = subparsers.add_parser('delete', help=message)
 choices = ["backup", "notification", "database"]
 message = "the type of resource"
-delete_parser.add_argument('type', choices=choices, help=message)
+delete_parser.add_argument('type', choices=choices, help=message, type=str.lower)
 message = "the ID of the resource to delete"
 delete_parser.add_argument('id', type=int, help=message)
 # message = "delete the local database"
@@ -128,14 +149,12 @@ export_parser.add_argument('--all', action='store_true', help=message)
 message = "timestamp the exported file"
 export_parser.add_argument('--timestamp', action='store_true', help=message)
 choices = [
-    "YAML",
-    "JSON",
     "yaml",
     "json"
 ]
-message = "output YAML or JSON, defaults to JSON"
+message = "output YAML or JSON, defaults to YAML"
 export_parser.add_argument('--output', help=message,
-                           choices=choices, metavar='')
+                           choices=choices, metavar='', type=str.lower)
 message = "path to output the file at"
 export_parser.add_argument('--output-path', metavar='', help=message)
 message = "avoid having passwords in the exported config"
@@ -186,7 +205,7 @@ choices = [
 ]
 message = "backup, stored, profiling, information, warning, or error"
 logs_parser.add_argument('type', metavar='type',
-                         choices=choices, help=message)
+                         choices=choices, help=message, type=str.lower)
 message = "backup id"
 logs_parser.add_argument('--id', type=int, metavar='', help=message)
 message = "view backend logs for the backup job"
@@ -198,6 +217,13 @@ logs_parser.add_argument('--lines', action='store', default=5,
                          type=int, metavar='', help=message)
 message = "show all message and exception lines"
 logs_parser.add_argument('--all', action='store_true', help=message)
+choices = [
+    "yaml",
+    "json"
+]
+message = "output YAML or JSON, defaults to YAML"
+logs_parser.add_argument('--output', help=message,
+                           choices=choices, metavar='', type=str.lower)
 
 # Subparser for the Login method
 message = "log into a Duplicati server"
@@ -243,13 +269,13 @@ config_parser.add_argument('--overwrite', action='store_true',
 message = "change between normal and verbose mode"
 verbose_parser = subparsers.add_parser('verbose', help=message)
 choices = ["enable", "disable"]
-verbose_parser.add_argument('mode', nargs='?', choices=choices)
+verbose_parser.add_argument('mode', nargs='?', choices=choices, type=str.lower)
 
 # Subparser for toggling precise time mode
 message = "change between short and precise time format"
 precise_parser = subparsers.add_parser('precise', help=message)
 choices = ["enable", "disable"]
-precise_parser.add_argument('mode', nargs='?', choices=choices)
+precise_parser.add_argument('mode', nargs='?', choices=choices, type=str.lower)
 
 # Subparser for setting a parameter file
 message = "import parameters from a YAML file"
