@@ -177,3 +177,10 @@ Apply the `--strip-metadata` option to remove the metadata before updating the b
 
 Encrypted configuration files are currently not supported.
 
+# A note on versioning
+
+duplicati-client will maintain a 0.x release status until Duplicati leaves beta. It's just not logical to make a "stable release" of a tool that interacts with product with no stable release. With that being said the Duplicati API has never broken duplicati-client with changes.
+
+Every 0.x change indicates a larger change in user interface or addition of features.
+
+0.x.x changes indicates small bug fixes and changes that shouldn't be noticable. Every "unit" of change increments this value, so a change from 0.x.1 to 0.x.5 indicates 4 separate logical units of change.

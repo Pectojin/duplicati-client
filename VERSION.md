@@ -1,5 +1,13 @@
 # Duplicati client
-Version 0.5.7 beta
+Version 0.6.3 beta
+
+## 0.6.3 beta (cee77f6)
+
+Added support for --output=JSON in many STDOUT results, thanks to @avmaksimov
+
+Added --confirm for noninteractive export of backups, thanks to @avmaksimov
+
+Fixed an issue with decoding UTF-8 happening in some environments (UTF-8 BOM error)
 
 ## 0.5.7 beta (5dbd54f)
 
