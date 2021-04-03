@@ -1371,7 +1371,7 @@ def create_backup_export(data, backup_id, output, path, export_passwords, timest
         common.log_output(message, True)
         os.makedirs(directory)
     # Check if output file exists
-    if confirm and (os.path.isfile(path) is True):
+    if not confirm and (os.path.isfile(path) is True):
         agree = input('File already exists, overwrite? [Y/n]:')
         if agree.lower() not in ["y", "yes"]:
             return
