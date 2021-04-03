@@ -17,15 +17,15 @@ def validate_config(data):
     valid = True
     if "server" not in data:
         valid = False
-    if "protocol" not in data.get("server", {}):
+    elif "protocol" not in data.get("server", {}):
         valid = False
-    if "url" not in data.get("server", {}):
+    elif "url" not in data.get("server", {}):
         valid = False
-    if "port" not in data.get("server", {}):
+    elif "port" not in data.get("server", {}):
         valid = False
-    if "token" not in data:
+    elif "token" not in data:
         valid = False
-    if "token_expires" not in data:
+    elif "token_expires" not in data:
         valid = False
 
     if not valid:
@@ -63,7 +63,7 @@ def load_parameters(data, args):
             parameters_file = yaml.safe_load(file_handle)
             parameters = len(parameters_file)
             message = "Loaded " + str(parameters) + " parameters from file"
-            log_output(message, True)
+            log_output(message, False)
 
             for key, value in parameters_file.items():
                 # Make sure not to override CLI provided arguments
@@ -157,8 +157,7 @@ def check_response(data, status_code):
         message += "you may need to login again"
         log_output(message, True)
         sys.exit(2)
-
-    if status_code == 526:
+    elif status_code == 526:
         message = "Server certificate could not be validated. "
         log_output(message, True, status_code)
         message = "You can specify a certificate with --certfile "
@@ -166,25 +165,25 @@ def check_response(data, status_code):
         log_output(message, True)
         sys.exit(2)
 
-    if status_code == 495:
+    elif status_code == 495:
         message = "Provided certificate is invalid or "
         message += "does not match the server certificate"
         log_output(message, True)
         sys.exit(2)
 
-    if status_code == 408:
+    elif status_code == 408:
         message = "The request timed out. "
         message += "Is the server running?"
         log_output(message, True)
         sys.exit(2)
 
-    if status_code == 503:
+    elif status_code == 503:
         message = "Server is not responding. Is it running?"
         log_output(message, True, status_code)
         sys.exit(2)
 
     # Refresh token duration if request is OK
-    if status_code == 200:
+    elif status_code == 200:
         expiration = datetime.datetime.now() + datetime.timedelta(0, 600)
         data["token_expires"] = expiration
         write_config(data)

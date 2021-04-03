@@ -71,14 +71,15 @@ def login(data, input_url=None, password=None, verify=True,
 
     # Detect if we're prompted for basic authentication
     auth_method = r.headers.get('WWW-Authenticate', False)
-    if (auth_method):
+    if auth_method:
         common.log_output('Basic authentication required...', False)
-        if basic_user is None and interactive:
-            basic_user = input('Basic username: ')
-        elif basic_user is None and not interactive:
-            message = 'You must provide a basic auth username, --basic-user'
-            common.log_output(message, True)
-            sys.exit(2)
+        if basic_user is None:
+            if interactive:
+                basic_user = input('Basic username: ')
+            else:
+                message = 'You must provide a basic auth username, --basic-user'
+                common.log_output(message, True)
+                sys.exit(2)
 
         if basic_pass is None and interactive:
             basic_pass = getpass.getpass('Basic password:')
@@ -232,10 +233,11 @@ def determine_ssl_validation(data, certfile=None, insecure=False):
 
 # Get password by prompting user if no password was given in-line
 def prompt_password(password, interactive):
-    if password is None and interactive:
-        common.log_output("Authentication required", False)
-        password = getpass.getpass('Password:')
-    elif password is None and not interactive:
-        common.log_output("A password is required required", True)
-        sys.exit(2)
+    if password is None:
+        if interactive:
+            common.log_output("Authentication required", False)
+            password = getpass.getpass('Password:')
+        else:
+            common.log_output("A password is required", True)
+            sys.exit(2)
     return password
