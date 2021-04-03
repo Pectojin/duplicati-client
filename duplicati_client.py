@@ -60,18 +60,22 @@ def main(**args):
     args = common.load_parameters(data, args)
 
     # Show parameters
-    if method == "params" and (args.get("show", False) or param_file is None):
-        display_parameters(data)
+    if method == "params":
+        if args.get("show", False) or param_file is None:
+            display_parameters(data)
+        return
 
     # Toggle verbosity
     if method == "verbose":
         mode = args.get("mode", None)
         data = toggle_verbose(data, mode)
+        return
 
     # Toggle precise time
     if method == "precise":
         mode = args.get("mode", None)
         data = toggle_precise(data, mode)
+        return
 
     # Write verbosity setting to config variable
     config.VERBOSE = data.get("verbose", False)
@@ -79,10 +83,12 @@ def main(**args):
     # Display the config if requested
     if method == "config":
         display_config(data)
+        return
 
     # Display the status if requested
     if method == "status":
         display_status(data)
+        return
 
     # Login
     if method == "login":
@@ -93,30 +99,38 @@ def main(**args):
         certfile = args.get("certfile", None)
         insecure = args.get("insecure", False)
         verify = auth.determine_ssl_validation(data, certfile, insecure)
-        interactive = args.get("script", True)
+        interactive = args.get("script", False)
         data = auth.login(data, url, password, verify, interactive,
                           basic_user, basic_pass)
+        return
 
     # Logout
     if method == "logout":
         data = auth.logout(data)
+        return
 
     # List resources
     if method == "list":
         resource_type = args.get("type", None)
-        list_resources(data, resource_type)
+        output_type = args.get("output", None)
+        list_resources(data, resource_type, output_type)
+        return
 
     # Get resources
     if method == "get":
         resource_type = args.get("type", None)
         resource_ids = args.get("id", None)
-        get_resources(data, resource_type, resource_ids)
+        output_type = args.get("output", None)
+        get_resources(data, resource_type, resource_ids, output_type)
+        return
 
     # Describe resources
     if method == "describe":
         resource_type = args.get("type", None)
         resource_ids = args.get("id", None)
-        describe_resources(data, resource_type, resource_ids)
+        output_type = args.get("output", None)
+        describe_resources(data, resource_type, resource_ids, output_type)
+        return
 
     # Set resource values
     if method == "set":
@@ -124,28 +138,33 @@ def main(**args):
         if resource == "password":
             password = args.get("password", None)
             disable_login = args.get("disable", False)
-            interactive = args.get("script", True)
+            interactive = args.get("script", False)
             auth.set_password(data, password, disable_login, interactive)
+        return
 
     # Repair a database
     if method == "repair":
         backup_id = args.get("id", None)
         repair_database(data, backup_id)
+        return
 
     # Vacuum a database
     if method == "vacuum":
         backup_id = args.get("id", None)
         vacuum_database(data, backup_id)
+        return
 
     # Verify remote data files
     if method == "verify":
         backup_id = args.get("id", None)
         verify_remote_files(data, backup_id)
+        return
 
     # Compact remote data
     if method == "compact":
         backup_id = args.get("id", None)
         compact_remote_files(data, backup_id)
+        return
 
     # Dismiss notifications
     if method == "dismiss":
@@ -154,6 +173,7 @@ def main(**args):
             common.log_output("Invalid id: " + resource_id, True)
             return
         dismiss_notifications(data, resource_id)
+        return
 
     # Show logs
     if method == "logs":
@@ -163,17 +183,21 @@ def main(**args):
         follow = args.get("follow", False)
         lines = args.get("lines", 10)
         show_all = args.get("all", False)
-        get_logs(data, log_type, backup_id, remote, follow, lines, show_all)
+        output_type = args.get("output", None)
+        get_logs(data, log_type, backup_id, remote, follow, lines, show_all, output_type)
+        return
 
     # Run backup
     if method == "run":
         backup_id = args.get("id", None)
         run_backup(data, backup_id)
+        return
 
     # Abort backup
     if method == "abort":
         backup_id = args.get("id", None)
         abort_task(data, backup_id)
+        return
 
     # Create method
     if method == "create":
@@ -182,6 +206,7 @@ def main(**args):
         import_meta = args.get("import_metadata", None)
 
         import_resource(data, import_type, import_file, None, import_meta)
+        return
 
     # Update method
     if method == "update":
@@ -192,6 +217,7 @@ def main(**args):
         import_meta = not args.get("strip_metadata", False)
 
         import_resource(data, import_type, import_file, import_id, import_meta)
+        return
 
     # Delete a resource
     if method == "delete":
@@ -202,6 +228,7 @@ def main(**args):
         recreate = args.get("recreate", False)
         delete_resource(data, resource_type, resource_id,
                         confirm, delete_db, recreate)
+        return
 
     # Export method
     if method == "export":
@@ -212,21 +239,25 @@ def main(**args):
         all_ids = args.get("all", False)
         timestamp = args.get("timestamp", False)
         print(export_passwords)
+        confirm = args.get("confirm", False)
         export_backup(data, resource_id, output_type, path,
-                      export_passwords, all_ids, timestamp)
-
+                      export_passwords, all_ids, timestamp, confirm)
+        return
 
     # Pause
     if method == "pause":
         time = args.get("duration", "xxx")
         pause(data, time)
+        return
     
     # Resume
     if method == "resume":
         resume(data)
+        return
+
 
 # Function for display a list of resources
-def list_resources(data, resource):
+def list_resources(data, resource, output_type):
     common.verify_token(data)
 
     if resource == "backups":
@@ -242,8 +273,7 @@ def list_resources(data, resource):
         common.log_output("No items found", True)
         sys.exit(2)
 
-    message = yaml.safe_dump(resource_list, default_flow_style=False, allow_unicode=True)
-    common.log_output(message, True, 200)
+    helper.output_dump(resource_list, output_type)
 
 
 # Fetch all backups
@@ -401,25 +431,23 @@ def list_filter(data, json_input, resource):
 
 
 # Get one or more resources with somewhat limited fields
-def get_resources(data, resource_type, resource_ids):
+def get_resources(data, resource_type, resource_ids, output_type):
     if resource_type == "backup":
         result = fetch_backups(data, resource_ids, "get")
     elif resource_type == "notification":
         result = fetch_notifications(data, resource_ids, "get")
 
-    message = yaml.safe_dump(result, default_flow_style=False, allow_unicode=True)
-    common.log_output(message, True, 200)
+    helper.output_dump(result, output_type)
 
 
 # Get one or more resources with all fields
-def describe_resources(data, resource_type, resource_ids):
+def describe_resources(data, resource_type, resource_ids, output_type):
     if resource_type == "backup":
         result = fetch_backups(data, resource_ids, "describe")
     elif resource_type == "notification":
         result = fetch_notifications(data, resource_ids, "describe")
 
-    message = yaml.safe_dump(result, default_flow_style=False, allow_unicode=True)
-    common.log_output(message, True, 200)
+    helper.output_dump(result, output_type)
 
 
 # Fetch notifications
@@ -667,8 +695,7 @@ def dismiss_notifications(data, resource_id="all"):
 
 
 # Fetch logs
-def get_logs(data, log_type, backup_id, remote=False,
-             follow=False, lines=10, show_all=False):
+def get_logs(data, log_type, backup_id, remote, follow, lines, show_all, output_type):
         common.verify_token(data)
 
         if log_type == "backup" and backup_id is None:
@@ -678,16 +705,16 @@ def get_logs(data, log_type, backup_id, remote=False,
         # Treating functions as objects to allow any function to be "followed"
         if log_type == "backup" and remote:
             def function():
-                get_backup_logs(data, backup_id, "remotelog", lines, show_all)
+                get_backup_logs(data, backup_id, "remotelog", lines, show_all, output_type)
         elif log_type == "backup" and not remote:
             def function():
-                get_backup_logs(data, backup_id, "log", lines, show_all)
+                get_backup_logs(data, backup_id, "log", lines, show_all, output_type)
         elif log_type in ["profiling", "information", "warning", "error"]:
             def function():
-                get_live_logs(data, log_type, lines)
+                get_live_logs(data, log_type, lines, output_type)
         elif log_type == "stored":
             def function():
-                get_stored_logs(data, lines, show_all)
+                get_stored_logs(data, lines, show_all, output_type)
 
         # Follow the function or just run it once
         if follow:
@@ -697,7 +724,7 @@ def get_logs(data, log_type, backup_id, remote=False,
 
 
 # Get local and remote backup logs
-def get_backup_logs(data, backup_id, log_type, page_size=5, show_all=False):
+def get_backup_logs(data, backup_id, log_type, page_size, show_all, output_type):
     endpoint = "/api/v1/backup/" + str(backup_id) + "/" + log_type
     baseurl = common.create_baseurl(data, endpoint)
     cookies = common.create_cookies(data)
@@ -748,12 +775,12 @@ def get_backup_logs(data, backup_id, log_type, page_size=5, show_all=False):
             int(log.get("Timestamp", 0))
         ).strftime("%I:%M:%S %p %d/%m/%Y")
         logs.append(log)
-    message = yaml.safe_dump(logs, default_flow_style=False, allow_unicode=True)
-    common.log_output(message, True)
+
+    helper.output_dump(logs, output_type)
 
 
 # Get live logs
-def get_live_logs(data, level, page_size=5, first_id=0):
+def get_live_logs(data, level, page_size, first_id, output_type):
     baseurl = common.create_baseurl(data, "/api/v1/logdata/poll")
     cookies = common.create_cookies(data)
     headers = common.create_headers(data)
@@ -782,12 +809,11 @@ def get_live_logs(data, level, page_size=5, first_id=0):
         common.log_output("No log entries found", True)
         return
 
-    message = yaml.safe_dump(logs, default_flow_style=False, allow_unicode=True)
-    common.log_output(message, True)
+    helper.output_dump(logs, output_type)
 
 
 # Get stored logs
-def get_stored_logs(data, page_size=5, show_all=False):
+def get_stored_logs(data, page_size, show_all, output_type):
     baseurl = common.create_baseurl(data, "/api/v1/logdata/log")
     cookies = common.create_cookies(data)
     headers = common.create_headers(data)
@@ -831,8 +857,7 @@ def get_stored_logs(data, page_size=5, show_all=False):
         common.log_output("No log entries found", True)
         return
 
-    message = yaml.safe_dump(logs, default_flow_style=False, allow_unicode=True)
-    common.log_output(message, True)
+    helper.output_dump(logs, output_type)
 
 
 # Repeatedly call other functions until interrupted
@@ -909,7 +934,7 @@ def delete_backup(data, backup_id, confirm=False, delete_db=False):
         message = 'Delete "' + name + '"? (ID:' + str(backup_id) + ')'
         options = '[y/N]:'
         agree = input(message + ' ' + options)
-        if agree not in ["Y", "y", "yes", "YES"]:
+        if agree.lower() not in ["y", "yes"]:
             common.log_output("Backup not deleted", True)
             return
 
@@ -945,7 +970,7 @@ def delete_database(data, backup_id, confirm=False, recreate=False):
         message += ' belonging to "' + name + '"?'
         options = '[y/N]:'
         agree = input(message + ' ' + options)
-        if agree not in ["Y", "y", "yes", "YES"]:
+        if agree.lower() not in ["y", "yes"]:
             common.log_output("Database not deleted", True)
             return
 
@@ -1289,19 +1314,19 @@ def import_backup(data, import_file, backup_id=None, import_meta=None):
 
 
 # Export backup wrapper function
-def export_backup(data, backup_id, output=None, path=None, export_passwords=True,
-                  all_ids=False, timestamp=False):
+def export_backup(data, backup_id, output, path, export_passwords,
+                  all_ids, timestamp, confirm):
     if all_ids:
         # Get all backup configs
         backups = fetch_backup_list(data)
         for backup in backups:
             create_backup_export(data, backup["Backup"]["ID"], output,
-                                 path, export_passwords, timestamp)
+                                 path, export_passwords, timestamp, confirm)
     else:
-        create_backup_export(data, backup_id, output, path, export_passwords, timestamp)
+        create_backup_export(data, backup_id, output, path, export_passwords, timestamp, confirm)
 
 # Export backup configuration to either YAML or JSON
-def create_backup_export(data, backup_id, output, path, export_passwords, timestamp):
+def create_backup_export(data, backup_id, output, path, export_passwords, timestamp, confirm):
     baseurl = common.create_baseurl(data, "/api/v1/backup/" + str(backup_id)
                                     + "/export?export-passwords=" + str(export_passwords).lower())
     common.log_output("Fetching backup data from API...", False)
@@ -1320,11 +1345,11 @@ def create_backup_export(data, backup_id, output, path, export_passwords, timest
     backup = r.json()
     name = backup['Backup']['Name']
 
-    # YAML or JSON?
-    if output in ["YAML", "yaml"]:
-        filetype = ".yml"
-    else:
+    # JSON or YAML?
+    if output is not None and output.lower() == "json":
         filetype = ".json"
+    else:
+        filetype = ".yml"
 
     # Decide on where to output file
     if timestamp:
@@ -1346,9 +1371,9 @@ def create_backup_export(data, backup_id, output, path, export_passwords, timest
         common.log_output(message, True)
         os.makedirs(directory)
     # Check if output file exists
-    if os.path.isfile(path) is True:
+    if confirm and (os.path.isfile(path) is True):
         agree = input('File already exists, overwrite? [Y/n]:')
-        if agree not in ["Y", "y", "yes", "YES", ""]:
+        if agree.lower() not in ["y", "yes"]:
             return
     with io.open(path, 'w', encoding="UTF-8") as file:
         if filetype == ".json":
@@ -1363,7 +1388,7 @@ if __name__ == '__main__':
     if (len(sys.argv) == 1):
         common.log_output(common.info(), True)
         sys.exit(2)
-
+    sys.argv[1] = sys.argv[1].lower()
     # Initialize argument parser and standard optional arguments
     parser = ArgumentParser.parser
 
