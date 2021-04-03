@@ -63,7 +63,7 @@ def load_parameters(data, args):
             parameters_file = yaml.safe_load(file_handle)
             parameters = len(parameters_file)
             message = "Loaded " + str(parameters) + " parameters from file"
-            log_output(message, True)
+            log_output(message, False)
 
             for key, value in parameters_file.items():
                 # Make sure not to override CLI provided arguments
