@@ -78,13 +78,13 @@ Get info
     duc get backup 1
 Run a backup job
 
-    duc run backup 1
+    duc run 1
 Logout when you're done
 
     duc logout
 
 # Supported commands
-    list      List all resources of a given type
+    list      list all resources of a given type
     get       display breif information on one or many resources
     describe  display detailed information on a specific resource
     set       set values on resources
@@ -92,21 +92,24 @@ Logout when you're done
     abort     abort a task
     create    create a resource on the server from a YAMl or JSON file
     update    update a resource on the server from a YAMl or JSON file
-    delete    delete a backup
+    delete    delete a resource on the server
     export    export a backup from the server to YAMl or JSON format
+    repair    repair a database
+    vacuum    vacuum a database
+    verify    verify remote backup data
+    compact   compact remote backup data
     dismiss   dismiss notifications
     logs      display the logs for a given job
     login     log into a Duplicati server
     logout    end the current server session
-    status    return information about the current session
+    status    print information about the current session
     version   print version number
-    config    prints the config to stdout
-    verbose   Change between normal and verbose mode
+    config    print the config
+    verbose   change between normal and verbose mode
+    precise   change between short and precise time format
     params    import parameters from a YAML file
     pause     pause Duplicati server
     resume    resume paused Duplicati server
-
-Some of the commands are placeholders until I get them implemented.
 
 # Setting the server password
 It's possible to configure a server password using the `set password` command.
