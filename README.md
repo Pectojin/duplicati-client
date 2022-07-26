@@ -16,6 +16,8 @@ The Duplicati Client connects to Duplicati servers remotely or locally and helps
    * [Parameters file](#parameters-file)
    * [Export backups](#export-backups)
    * [Create and update backups](#create-and-update-backups)
+   * [A note on versioning](#a-note-on-versioning)
+   * [Building Releases](#building-releases)
 <!--te-->
 
 # Why use Duplicati Client?
@@ -187,3 +189,27 @@ duplicati-client will maintain a 0.x release status until Duplicati leaves beta.
 Every 0.x change indicates a larger change in user interface or addition of features.
 
 0.x.x changes indicates small bug fixes and changes that shouldn't be noticable. Every "unit" of change increments this value, so a change from 0.x.1 to 0.x.5 indicates 4 separate logical units of change.
+
+# Building releases
+
+Releases are built in a fairly simple manner using a script for each platform located in the `scripts/` folder:
+```
+scripts/general_build.sh  scripts/linux_build.sh  scripts/macos_build.sh  scripts/windows_build.sh
+```
+
+All of the scripts rely on python and the packages declared in `build-requirements.txt`. Furthermore a comprimise has been made for the windows packaging using [cygwin](https://www.cygwin.com/) instead of writing a windows native script.
+
+After setting up the dependencies simply run the script and the release packages can be found in `script/releases`:
+```
+% cd scripts
+% bash ./general_build.sh
+
+Build version: 0.6.3
+Creating release folder and copying files...
+Packing release into a zip archive...
+Done!
+% ls releases
+duplicati_client_0.6.3_general  duplicati_client_0.6.3_general.zip
+```
+
+PyInstaller takes care of bundling the application and all dependencies into a single binary that can be run without python installed.
