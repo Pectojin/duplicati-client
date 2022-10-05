@@ -1,6 +1,13 @@
 # Duplicati Client
 The Duplicati Client connects to Duplicati servers remotely or locally and helps manage them easily through the command-line.
 
+## A note on maintenance status
+
+I don't really use duplicati anymore, so maintaining this tool has low priority for me.
+I probably won't add new features or fix unimportant bugs. I might help out with troubleshooting issues, but I won't make promises.
+
+To my knowledge the tool works fine on all platforms it has been used on, and it is fairly feature complete, so this isn't a declaration of deprecation.. It is just a formal statement about my reprioritization.
+
 # Table of contents
 
 <!--ts-->
