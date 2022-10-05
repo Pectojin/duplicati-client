@@ -711,7 +711,7 @@ def get_logs(data, log_type, backup_id, remote, follow, lines, show_all, output_
                 get_backup_logs(data, backup_id, "log", lines, show_all, output_type)
         elif log_type in ["profiling", "information", "warning", "error"]:
             def function():
-                get_live_logs(data, log_type, lines, output_type)
+                get_live_logs(data, log_type, lines, backup_id, output_type)
         elif log_type == "stored":
             def function():
                 get_stored_logs(data, lines, show_all, output_type)
@@ -744,7 +744,7 @@ def get_backup_logs(data, backup_id, log_type, page_size, show_all, output_type)
         common.log_output("Error getting log", True, r.status_code)
         return
 
-    result = r.json()[-page_size:]
+    result = r.json()[:page_size]
     logs = []
     for log in result:
         if log.get("Operation", "") == "list":
@@ -799,7 +799,7 @@ def get_live_logs(data, level, page_size, first_id, output_type):
         common.log_output("Error getting log", True, r.status_code)
         return
 
-    result = r.json()[-page_size:]
+    result = r.json()[:page_size]
     logs = []
     for log in result:
         log["When"] = helper.format_time(data, log.get("When", ""))
@@ -832,7 +832,7 @@ def get_stored_logs(data, page_size, show_all, output_type):
         common.log_output("Error getting log", True, r.status_code)
         return
 
-    result = r.json()[-page_size:]
+    result = r.json()[:page_size]
     logs = []
     for log in result:
         if log.get("Message", None) is not None:
