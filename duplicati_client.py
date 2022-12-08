@@ -466,17 +466,18 @@ def fetch_notifications(data, notification_ids, method):
         id_list = ', '.join(notification_ids)
         message = "Error getting notifications " + id_list
         common.log_output(message, True, r.status_code)
+        rdata = []
     else:
-        data = r.json()
+        rdata = r.json()
 
-    for notification in data:
+    for notification in rdata:
         notification_id = notification.get("ID", -1)
         if notification_id in notification_ids:
             notification_list.append(notification)
 
     # Only get uses a filter
     if method == "get":
-        notification_list = notification_filter(notification_list)
+        notification_list = notification_filter(data, notification_list)
 
     return notification_list
 
