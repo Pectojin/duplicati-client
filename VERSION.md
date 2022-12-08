@@ -1,5 +1,11 @@
 # Duplicati client
-Version 0.6.3 beta
+Version 0.6.5 beta
+
+## 0.6.5 beta (c785b58)
+
+Fix get notification @gpatel-fr
+
+Fixing showing correct log items and stored logs @avmaksimov
 
 ## 0.6.3 beta (cee77f6)
 
