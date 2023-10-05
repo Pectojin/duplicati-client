@@ -10,10 +10,7 @@ echo "Build version:" $version
 echo "Creating release folder and copying files..."
 
 # Create folder to hold releases if it doesn't exist
-if [ ! -d "releases" ]; then
-	mkdir releases
-fi
-
+mkdir -p releases
 cd releases
 
 # Remove release folder if it already exists

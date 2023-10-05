@@ -6,12 +6,12 @@
 
 echo "Cleaning up old files..." 
 # Cleanup old dist files
-if [ ! -d "dist" ]; then
+if [ -d "dist" ]; then
 	rm -rf dist
 fi
 
 # Cleanup old build files
-if [ ! -d "build" ]; then
+if [ -d "build" ]; then
 	rm -rf build
 fi
 
